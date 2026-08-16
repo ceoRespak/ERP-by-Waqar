@@ -1,0 +1,1780 @@
+// =====================================================================
+// RESPAK CONSTRUCTION ERP — MySQL / Prisma Schema
+// Modules: Procurement, Inventory, Finance, HR & Payroll, Vehicle
+// Tracking, Vendor Management, Client Management, Site Management
+// Plus: RBAC (roles/permissions), Approval workflow engine, Audit log
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================================
+// COMPANY (single tenant: RESPAK, but structured for multi-branch)
+// =====================================================================
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  legalName String?
+  address   String?
+  city      String?
+  phone     String?
+  email     String?
+  taxNo     String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =====================================================================
+// AUTH & ROLE BASED ACCESS CONTROL
+// =====================================================================
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  name      String
+  phone     String?
+  avatarUrl String?
+  status    UserStatus @default(ACTIVE)
+  lastLoginAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  roles        UserRole[]
+  employee     Employee?
+  auditLogs    AuditLog[]
+  approvalActions ApprovalAction[]
+  approvalRequestsCreated ApprovalRequest[] @relation("ApprovalCreatedBy")
+  approvalRequestsSubmitted ApprovalRequest[] @relation("ApprovalSubmittedBy")
+  stockTransactions StockTransaction[]
+  approvalStepsApprover ApprovalStep[] @relation("StepApproverUser")
+  projectAssignments ProjectUser[]
+  ownedDocuments Document[]
+  documentVersions DocumentVersion[]
+
+  @@index([status])
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        UserRole[]
+  permissions  RolePermission[]
+  approvalSteps ApprovalStep[] @relation("StepApproverRole")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  module      String // e.g. "procurement"
+  action      String // e.g. "read" | "create" | "approve"
+  key         String   @unique // e.g. "procurement:read"
+  description String?
+  roles       RolePermission[]
+
+  @@index([module])
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+// =====================================================================
+// AUDIT LOG (who did what, when)
+// =====================================================================
+model AuditLog {
+  id        Int       @id @default(autoincrement())
+  userId    Int?
+  userName  String?
+  action    String // CREATE | UPDATE | DELETE | SUBMIT | APPROVE | REJECT | LOGIN
+  module    String
+  entity    String?
+  entityId  String?
+  details   Json?
+  ip        String?
+  createdAt DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([module, entity, entityId])
+  @@index([createdAt])
+}
+
+// =====================================================================
+// APPROVAL WORKFLOW ENGINE (generic, configurable per transaction type)
+// =====================================================================
+enum ApprovalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ApprovalChain {
+  id          Int      @id @default(autoincrement())
+  name        String
+  module      String // procurement | hr | finance | sites
+  entityType  String // PURCHASE_REQUISITION | CHECK_REQUEST | ...
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps    ApprovalStep[]
+  requests ApprovalRequest[]
+
+  @@unique([entityType, name])
+}
+
+model ApprovalStep {
+  id        Int    @id @default(autoincrement())
+  chainId   Int
+  stepOrder Int
+  roleId    Int? // approve by role (preferred)
+  userId    Int? // or by a specific user
+  canEdit   Boolean @default(false)
+
+  chain ApprovalChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  role  Role?         @relation("StepApproverRole", fields: [roleId], references: [id], onDelete: SetNull)
+  user  User?         @relation("StepApproverUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  actions ApprovalAction[]
+
+  @@unique([chainId, stepOrder])
+  @@index([roleId])
+}
+
+model ApprovalRequest {
+  id              Int            @id @default(autoincrement())
+  module          String
+  entityType      String
+  entityId        Int
+  chainId         Int?
+  status          ApprovalStatus @default(PENDING)
+  currentStep     Int            @default(1)
+  createdById     Int?
+  createdByName   String?
+  submittedById   Int?
+  submittedByName String?
+  submittedAt     DateTime?
+  decidedAt       DateTime?
+  remarks         String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  chain    ApprovalChain?    @relation(fields: [chainId], references: [id], onDelete: SetNull)
+  actions  ApprovalAction[]
+  createdBy User?            @relation("ApprovalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  submittedBy User?          @relation("ApprovalSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([module, entityType, entityId])
+}
+
+enum ApprovalActionType {
+  SUBMIT
+  APPROVE
+  REJECT
+  CANCEL
+}
+
+model ApprovalAction {
+  id        Int                @id @default(autoincrement())
+  requestId Int
+  stepOrder Int
+  action    ApprovalActionType
+  userId    Int?
+  userName  String?
+  comment   String?
+  stepId    Int?
+  createdAt DateTime           @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  step    ApprovalStep?   @relation(fields: [stepId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+}
+
+// =====================================================================
+// REFERENCE DATA — Organization
+// =====================================================================
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String?
+  description String?
+  createdAt DateTime @default(now())
+
+  employees    Employee[]
+  requisitions PurchaseRequisition[]
+}
+
+model Designation {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  employees Employee[]
+}
+
+// =====================================================================
+// MODULE: PROCUREMENT
+// Flow: Purchase Requisition -> Approval -> Purchase Order -> GRN
+// =====================================================================
+model PurchaseRequisition {
+  id               Int       @id @default(autoincrement())
+  prNo             String    @unique
+  title            String
+  requestedById    Int
+  requestedByName  String
+  departmentId     Int?
+  projectId        Int?
+  requiredDate     DateTime?
+  notes            String?
+  status           String    @default("DRAFT") // DRAFT | PENDING | APPROVED | REJECTED
+  approvalRequestId Int?     @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  project    Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  items      PRItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([status])
+}
+
+model PRItem {
+  id             Int      @id @default(autoincrement())
+  requisitionId  Int
+  itemId         Int?
+  description    String
+  quantity       Decimal  @db.Decimal(12, 2)
+  unit           String
+  estimatedCost  Decimal  @db.Decimal(14, 2) @default(0)
+  notes          String?
+
+  requisition PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  item        Item?               @relation(fields: [itemId], references: [id], onDelete: SetNull)
+}
+
+model PurchaseOrder {
+  id               Int       @id @default(autoincrement())
+  poNo             String    @unique
+  requisitionId    Int?
+  vendorId         Int?
+  vendorName       String
+  projectId        Int?
+  orderDate        DateTime  @default(now())
+  expectedDelivery DateTime?
+  status           String    @default("DRAFT") // DRAFT | PENDING | APPROVED | REJECTED | PARTIALLY_RECEIVED | COMPLETED | CANCELLED
+  approvalRequestId Int?     @unique
+  subtotal         Decimal   @db.Decimal(14, 2)
+  taxAmount        Decimal   @db.Decimal(14, 2) @default(0)
+  discount         Decimal   @db.Decimal(14, 2) @default(0)
+  total            Decimal   @db.Decimal(14, 2)
+  terms            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  requisition PurchaseRequisition? @relation(fields: [requisitionId], references: [id], onDelete: SetNull)
+  vendor      Vendor?              @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  items       POItem[]
+  grns        GRN[]
+  supplierInvoices SupplierInvoice[]
+
+  @@index([status])
+}
+
+model POItem {
+  id          Int     @id @default(autoincrement())
+  poId        Int
+  itemId      Int?
+  description String
+  quantity    Decimal @db.Decimal(12, 2)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  taxRate     Decimal @db.Decimal(6, 2) @default(0)
+  lineTotal   Decimal @db.Decimal(14, 2)
+  receivedQty Decimal @db.Decimal(12, 2) @default(0)
+
+  po       PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  item     Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  grnItems GRNItem[]
+}
+
+model GRN {
+  id           Int      @id @default(autoincrement())
+  grnNo        String   @unique
+  poId         Int
+  warehouseId  Int?
+  receivedDate DateTime @default(now())
+  receivedById Int?
+  notes        String?
+  status       String   @default("POSTED")
+  createdAt    DateTime @default(now())
+
+  po        PurchaseOrder @relation(fields: [poId], references: [id])
+  warehouse Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  items     GRNItem[]
+
+  @@index([poId])
+}
+
+model GRNItem {
+  id          Int     @id @default(autoincrement())
+  grnId       Int
+  poItemId    Int
+  itemId      Int?
+  receivedQty Decimal @db.Decimal(12, 2)
+
+  grn    GRN      @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  poItem POItem   @relation(fields: [poItemId], references: [id], onDelete: Cascade)
+  item   Item?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+}
+
+// Supplier (AP) invoice — vendor billing against a purchase order
+model SupplierInvoice {
+  id            Int       @id @default(autoincrement())
+  invoiceNo     String    @unique
+  poId          Int
+  vendorId      Int?
+  invoiceDate   DateTime  @default(now())
+  dueDate       DateTime?
+  subtotal      Decimal   @db.Decimal(14, 2)
+  taxAmount     Decimal   @db.Decimal(14, 2) @default(0)
+  total         Decimal   @db.Decimal(14, 2)
+  status        String    @default("UNPAID") // UNPAID | PARTIAL | PAID
+  approvalRequestId Int?  @unique
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  po     PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  vendor Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  lines  SupplierInvoiceLine[]
+
+  @@index([status])
+}
+
+model SupplierInvoiceLine {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  description String
+  quantity    Decimal @db.Decimal(12, 2) @default(1)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  lineTotal   Decimal @db.Decimal(14, 2)
+
+  invoice SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================================
+// MODULE: INVENTORY
+// =====================================================================
+model ItemCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  items Item[]
+}
+
+model Item {
+  id            Int     @id @default(autoincrement())
+  code          String  @unique
+  name          String
+  categoryId    Int?
+  unit          String
+  reorderLevel  Decimal @db.Decimal(12, 2) @default(0)
+  openingStock  Decimal @db.Decimal(12, 2) @default(0)
+  isActive      Boolean @default(true)
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category        ItemCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  stockLevels     StockLevel[]
+  transactions    StockTransaction[]
+  prItems         PRItem[]
+  poItems         POItem[]
+  grnItems        GRNItem[]
+  materialRequestItems MaterialRequestItem[]
+  materialIssueItems MaterialIssueItem[]
+
+  @@index([categoryId])
+}
+
+model Warehouse {
+  id       Int      @id @default(autoincrement())
+  code     String   @unique
+  name     String
+  location String?
+  createdAt DateTime @default(now())
+
+  stockLevels StockLevel[]
+  transactions StockTransaction[]
+  grns GRN[]
+  materialIssues MaterialIssue[]
+}
+
+model StockLevel {
+  id          Int     @id @default(autoincrement())
+  itemId      Int
+  warehouseId Int
+  quantity    Decimal @db.Decimal(12, 2) @default(0)
+
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, warehouseId])
+}
+
+enum StockTransactionType {
+  RECEIPT
+  ISSUE
+  ADJUSTMENT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+model StockTransaction {
+  id            Int                  @id @default(autoincrement())
+  transactionNo String               @unique
+  itemId        Int
+  warehouseId   Int
+  type          StockTransactionType
+  quantity      Decimal              @db.Decimal(12, 2)
+  unitCost      Decimal              @db.Decimal(14, 2) @default(0)
+  refType       String? // GRN | PO | ADJUSTMENT
+  refId         Int?
+  notes         String?
+  createdById   Int?
+  createdAt     DateTime             @default(now())
+
+  item      Item      @relation(fields: [itemId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([itemId, warehouseId])
+  @@index([type])
+}
+
+// =====================================================================
+// MODULE: FINANCE (Chart of Accounts, Journal, Payments, Client Invoices)
+// =====================================================================
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model Account {
+  id          Int         @id @default(autoincrement())
+  code        String      @unique
+  name        String
+  type        AccountType
+  parentId    Int?
+  isActive    Boolean     @default(true)
+  description String?
+  createdAt   DateTime    @default(now())
+
+  parent        Account?            @relation("AccountTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Account[]           @relation("AccountTree")
+  journalLines  JournalEntryLine[]
+  payments      Payment[]
+  budgetLines   BudgetLine[]
+}
+
+model JournalEntry {
+  id               Int      @id @default(autoincrement())
+  entryNo          String   @unique
+  date             DateTime @default(now())
+  description      String
+  status           String   @default("DRAFT") // DRAFT | PENDING | POSTED | REJECTED
+  approvalRequestId Int?    @unique
+  createdById      Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  lines JournalEntryLine[]
+
+  @@index([date])
+}
+
+model JournalEntryLine {
+  id        Int     @id @default(autoincrement())
+  entryId   Int
+  accountId Int
+  debit     Decimal @db.Decimal(14, 2) @default(0)
+  credit    Decimal @db.Decimal(14, 2) @default(0)
+  notes     String?
+
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account Account      @relation(fields: [accountId], references: [id])
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  CHEQUE
+  ONLINE
+  OTHER
+}
+
+model Payment {
+  id               Int           @id @default(autoincrement())
+  paymentNo        String        @unique
+  type             String // IN (receipt) | OUT (payment)
+  amount           Decimal       @db.Decimal(14, 2)
+  method           PaymentMethod @default(CASH)
+  date             DateTime      @default(now())
+  accountId        Int
+  refType          String? // SUPPLIER_INVOICE | CLIENT_INVOICE | CHECK_REQUEST
+  refId            Int?
+  notes            String?
+  status           String        @default("PENDING") // PENDING | APPROVED | PAID | REJECTED
+  approvalRequestId Int?         @unique
+  createdById      Int?
+  createdAt        DateTime      @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([type, status])
+}
+
+model ClientInvoice {
+  id               Int      @id @default(autoincrement())
+  invoiceNo        String   @unique
+  clientId         Int
+  projectId        Int?
+  date             DateTime @default(now())
+  dueDate          DateTime?
+  subtotal         Decimal  @db.Decimal(14, 2)
+  taxAmount        Decimal  @db.Decimal(14, 2) @default(0)
+  total            Decimal  @db.Decimal(14, 2)
+  status           String   @default("UNPAID") // UNPAID | PARTIAL | PAID | CANCELLED
+  approvalRequestId Int?    @unique
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  client  Client? @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  lines   ClientInvoiceLine[]
+
+  @@index([status])
+}
+
+model ClientInvoiceLine {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  description String
+  quantity    Decimal @db.Decimal(12, 2) @default(1)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  lineTotal   Decimal @db.Decimal(14, 2)
+
+  invoice ClientInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================================
+// MODULE: HR & PAYROLL
+// =====================================================================
+model Employee {
+  id           Int       @id @default(autoincrement())
+  empCode      String    @unique
+  firstName    String
+  lastName     String
+  cnic         String?   @unique
+  gender       String?
+  dateOfBirth  DateTime?
+  phone        String?
+  email        String?
+  address      String?
+  departmentId Int?
+  designationId Int?
+  joiningDate  DateTime?
+  basicSalary  Decimal   @db.Decimal(14, 2) @default(0)
+  allowances   Decimal   @db.Decimal(14, 2) @default(0)
+  bankName     String?
+  bankAccount  String?
+  status       String    @default("ACTIVE") // ACTIVE | ON_LEAVE | TERMINATED
+  userId       Int?      @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  department  Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  designation Designation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  attendance  Attendance[]
+  leaveRequests LeaveRequest[]
+  payrollItems PayrollItem[]
+  managedProjects Project[] @relation("ProjectManager")
+  vehiclesDriven Vehicle[] @relation("VehicleDriver")
+  trainingRecords TrainingRecord[]
+
+  @@index([departmentId])
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  date       DateTime
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     String   @default("PRESENT") // PRESENT | ABSENT | LEAVE | HALF_DAY
+  notes      String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+  @@index([date])
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  ANNUAL
+  UNPAID
+  OTHER
+}
+
+model LeaveRequest {
+  id               Int       @id @default(autoincrement())
+  employeeId       Int
+  leaveType        LeaveType
+  fromDate         DateTime
+  toDate           DateTime
+  days             Decimal   @db.Decimal(6, 1)
+  reason           String
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+  approvalRequestId Int?     @unique
+  createdAt        DateTime  @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model PayrollRun {
+  id               Int      @id @default(autoincrement())
+  period           String // "2026-08"
+  startDate        DateTime
+  endDate          DateTime
+  processedById    Int?
+  status           String   @default("DRAFT") // DRAFT | PENDING | APPROVED | PAID | REJECTED
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items PayrollItem[]
+
+  @@unique([period])
+}
+
+model PayrollItem {
+  id          Int     @id @default(autoincrement())
+  runId       Int
+  employeeId  Int
+  basicSalary Decimal @db.Decimal(14, 2)
+  allowances  Decimal @db.Decimal(14, 2) @default(0)
+  deductions  Decimal @db.Decimal(14, 2) @default(0)
+  netSalary   Decimal @db.Decimal(14, 2)
+
+  run      PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, employeeId])
+}
+
+// =====================================================================
+// MODULE: VEHICLE TRACKING
+// =====================================================================
+enum VehicleType {
+  TRUCK
+  CAR
+  PICKUP
+  LOADER
+  CRANE
+  GENERATOR
+  MOTORBIKE
+  OTHER
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  CNG
+  ELECTRIC
+}
+
+model Vehicle {
+  id            Int         @id @default(autoincrement())
+  regNo         String      @unique
+  type          VehicleType @default(CAR)
+  brand         String?
+  model         String?
+  year          Int?
+  capacity      String?
+  fuelType      FuelType    @default(DIESEL)
+  purchaseDate  DateTime?
+  cost          Decimal?    @db.Decimal(14, 2)
+  currentKm     Decimal?    @db.Decimal(10, 1)
+  status        String      @default("ACTIVE") // ACTIVE | IN_MAINTENANCE | OUT_OF_SERVICE | SOLD
+  driverEmployeeId Int?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  driver       Employee?           @relation("VehicleDriver", fields: [driverEmployeeId], references: [id], onDelete: SetNull)
+  trips        VehicleTrip[]
+  fuelLogs     FuelLog[]
+  maintenances VehicleMaintenance[]
+  locations    VehicleLocation[]
+
+  @@index([status])
+}
+
+model VehicleTrip {
+  id              Int      @id @default(autoincrement())
+  vehicleId       Int
+  driverEmployeeId Int?
+  date            DateTime @default(now())
+  startKm         Decimal? @db.Decimal(10, 1)
+  endKm           Decimal? @db.Decimal(10, 1)
+  purpose         String
+  projectId       Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  vehicle Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  project Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+}
+
+model FuelLog {
+  id         Int      @id @default(autoincrement())
+  vehicleId  Int
+  date       DateTime @default(now())
+  odometer   Decimal? @db.Decimal(10, 1)
+  liters     Decimal  @db.Decimal(10, 2)
+  rate       Decimal  @db.Decimal(14, 2)
+  totalCost  Decimal  @db.Decimal(14, 2)
+  vendorId   Int?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vendor  Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+}
+
+model VehicleMaintenance {
+  id          Int      @id @default(autoincrement())
+  vehicleId   Int
+  date        DateTime @default(now())
+  type        String // OIL_CHANGE | TYRE | SERVICE | REPAIR | ...
+  description String
+  cost        Decimal  @db.Decimal(14, 2)
+  vendorId    Int?
+  nextDueKm   Decimal? @db.Decimal(10, 1)
+  status      String   @default("COMPLETED") // SCHEDULED | IN_PROGRESS | COMPLETED
+  createdAt   DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model VehicleLocation {
+  id         Int     @id @default(autoincrement())
+  vehicleId  Int
+  latitude   Decimal @db.Decimal(10, 6)
+  longitude  Decimal @db.Decimal(10, 6)
+  speed      Decimal @db.Decimal(6, 2) @default(0)
+  recordedAt DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, recordedAt])
+}
+
+// =====================================================================
+// MODULE: VENDOR MANAGEMENT
+// =====================================================================
+enum VendorType {
+  SUPPLIER
+  CONTRACTOR
+  SUBCONTRACTOR
+  SERVICE_PROVIDER
+}
+
+model Vendor {
+  id            Int        @id @default(autoincrement())
+  code          String     @unique
+  name          String
+  type          VendorType @default(SUPPLIER)
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  ntn           String?
+  bankName      String?
+  bankAccount   String?
+  rating        Decimal?   @db.Decimal(3, 1)
+  status        String     @default("ACTIVE") // ACTIVE | BLACKLISTED | INACTIVE
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  contacts    VendorContact[]
+  evaluations VendorEvaluation[]
+  documents   VendorDocument[]
+  purchaseOrders PurchaseOrder[]
+  fuelLogs    FuelLog[]
+  supplierInvoices SupplierInvoice[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model VendorContact {
+  id          Int     @id @default(autoincrement())
+  vendorId    Int
+  name        String
+  phone       String?
+  email       String?
+  designation String?
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+model VendorEvaluation {
+  id          Int      @id @default(autoincrement())
+  vendorId    Int
+  date        DateTime @default(now())
+  criteria    String // QUALITY | PRICE | DELIVERY | SERVICE
+  score       Int // 1-10
+  remarks     String?
+  evaluatedBy String?
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+model VendorDocument {
+  id        Int      @id @default(autoincrement())
+  vendorId  Int
+  name      String
+  type      String? // NTN | REGISTRATION | BANK | OTHER
+  fileUrl   String
+  expiryDate DateTime?
+  createdAt DateTime @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================================
+// MODULE: CLIENT & PROJECT MANAGEMENT
+// =====================================================================
+enum ClientType {
+  CORPORATE
+  INDIVIDUAL
+  GOVERNMENT
+  OTHER
+}
+
+model Client {
+  id            Int        @id @default(autoincrement())
+  code          String     @unique
+  name          String
+  type          ClientType @default(CORPORATE)
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  ntn           String?
+  status        String     @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  contacts  ClientContact[]
+  contracts ClientContract[]
+  projects  Project[]
+  invoices  ClientInvoice[]
+
+  @@index([status])
+}
+
+model ClientContact {
+  id          Int     @id @default(autoincrement())
+  clientId    Int
+  name        String
+  phone       String?
+  email       String?
+  designation String?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model ClientContract {
+  id         Int      @id @default(autoincrement())
+  clientId   Int
+  projectId  Int?
+  contractNo String   @unique
+  title      String
+  value      Decimal  @db.Decimal(16, 2)
+  startDate  DateTime
+  endDate    DateTime?
+  status     String   @default("ACTIVE") // DRAFT | ACTIVE | COMPLETED | TERMINATED
+  createdAt  DateTime @default(now())
+
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Project {
+  id                Int             @id @default(autoincrement())
+  code              String          @unique
+  name              String
+  clientId          Int?
+  category          ProjectCategory @default(CONSTRUCTION)
+  location          String?
+  startDate         DateTime?
+  endDate           DateTime?
+  budget            Decimal         @db.Decimal(16, 2) @default(0)
+  status            ProjectStatus   @default(PLANNING)
+  managerEmployeeId Int?
+  description       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  client  Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  manager Employee? @relation("ProjectManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
+
+  requisitions PurchaseRequisition[]
+  purchaseOrders PurchaseOrder[]
+  contracts    ClientContract[]
+  trips        VehicleTrip[]
+  invoices     ClientInvoice[]
+  dprs         DPR[]
+  checkRequests CheckRequest[]
+  submittals   Submittal[]
+  transmittals Transmittal[]
+
+  // ---- Multi-Project / BOQ / Progress / Budget / Cost ----
+  projectUsers    ProjectUser[]
+  boqs            BOQ[]
+  activities      Activity[]
+  progressReports ProjectProgress[]
+  laborLogs       LaborLog[]
+  equipments      Equipment[]
+  equipmentUsage  EquipmentUsageLog[]
+  budgets         Budget[]
+  costAlerts      CostAlert[]
+  costCenters     CostCenter[]
+  costLogs        CostLog[]
+  variationOrders VariationOrder[]
+  ipcs            IPC[]
+  materialRequests MaterialRequest[]
+  materialIssues  MaterialIssue[]
+
+  // ---- Correspondence & Document Control / ISO ----
+  correspondence Correspondence[]
+  documents       Document[]
+  ncr             NCR[]
+  riskAssessments RiskAssessment[]
+  environmentalAspects EnvironmentalAspect[]
+  safetyIncidents SafetyIncident[]
+
+  @@index([status])
+  @@index([category])
+}
+
+enum ProjectCategory {
+  CONSTRUCTION
+  REAL_ESTATE
+  SUPPLY_WORKS
+  SOLARIZATION
+  OTHER
+}
+
+// =====================================================================
+// MODULE: SITE MANAGEMENT (DPR, Check Request, Submittal, Transmittal)
+// =====================================================================
+model DPR {
+  id               Int      @id @default(autoincrement())
+  dprNo            String   @unique
+  projectId        Int
+  reportDate       DateTime @default(now())
+  preparedById     Int?
+  preparedByName   String?
+  weather          String?
+  workDone         String
+  manpower         String?
+  equipment        String?
+  materialReceived String?
+  issues           String?
+  nextPlan         String?
+  status           String   @default("PENDING") // DRAFT | PENDING | APPROVED | REJECTED
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, reportDate])
+}
+
+model CheckRequest {
+  id               Int      @id @default(autoincrement())
+  requestNo        String   @unique
+  projectId        Int
+  date             DateTime @default(now())
+  amount           Decimal  @db.Decimal(14, 2)
+  payeeName        String
+  payeeType        String? // VENDOR | EMPLOYEE | OTHER
+  description      String
+  status           String   @default("PENDING") // DRAFT | PENDING | APPROVED | REJECTED | PAID
+  approvalRequestId Int?    @unique
+  paymentId        Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Submittal {
+  id               Int      @id @default(autoincrement())
+  submittalNo      String   @unique
+  projectId        Int
+  date             DateTime @default(now())
+  title            String
+  category         String? // MATERIAL | DRAWING | SPECIFICATION | TEST
+  description      String?
+  status           String   @default("PENDING") // DRAFT | PENDING | APPROVED | REJECTED | RESUBMIT
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model Transmittal {
+  id            Int      @id @default(autoincrement())
+  transmittalNo String   @unique
+  projectId     Int
+  date          DateTime @default(now())
+  subject       String
+  receiverName  String?
+  receiverOrg   String?
+  description   String?
+  status        String   @default("SENT") // DRAFT | SENT | RECEIVED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// Generic attachment store (points to any entity via refType/refId)
+model Attachment {
+  id          Int      @id @default(autoincrement())
+  refType     String // DPR | CHECK_REQUEST | SUBMITTAL | TRANSMITTAL | VENDOR | PROJECT | BOQ | PROGRESS | SITE_REPORT | NCR | CAPA | DOCUMENT | IPC | MR | ACTIVITY
+  refId       Int
+  fileName    String
+  fileUrl     String
+  uploadedById Int?
+  uploadedAt  DateTime @default(now())
+
+  @@index([refType, refId])
+}
+
+// =====================================================================
+// MODULE: MULTI-PROJECT ACCESS CONTROL
+// Users can be assigned to projects with a project-level access role.
+// RBAC (global roles) + this project assignment together control access.
+// =====================================================================
+enum ProjectAccessRole {
+  VIEWER
+  EDITOR
+  APPROVER
+  MANAGER
+}
+
+model ProjectUser {
+  id        Int               @id @default(autoincrement())
+  projectId Int
+  userId    Int
+  role      ProjectAccessRole @default(VIEWER)
+  createdAt DateTime          @default(now())
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// =====================================================================
+// MODULE: BOQ MANAGEMENT (multi-level, with rate analysis)
+// BOQ -> BOQItem (self-referencing tree for sub-items) -> RateAnalysis
+// =====================================================================
+model BOQ {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  code        String   @unique // BOQ / PROJECT / YEAR / SERIAL
+  title       String
+  version     String   @default("1.0")
+  status      String   @default("DRAFT") // DRAFT | APPROVED | REVISED | OBSOLETE
+  totalAmount Decimal  @db.Decimal(16, 2) @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items   BOQItem[]
+
+  @@index([projectId, status])
+}
+
+model BOQItem {
+  id          Int      @id @default(autoincrement())
+  boqId       Int
+  parentId    Int?
+  itemCode    String
+  description String
+  category    String? // EARTHWORK | CONCRETE | MEP | STRUCTURAL | ...
+  unit        String
+  quantity    Decimal  @db.Decimal(14, 2)
+  rate        Decimal  @db.Decimal(14, 2) @default(0)
+  amount      Decimal  @db.Decimal(16, 2) @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  boq          BOQ             @relation(fields: [boqId], references: [id], onDelete: Cascade)
+  parent       BOQItem?        @relation("BOQItemTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children     BOQItem[]       @relation("BOQItemTree")
+  rateAnalysis RateAnalysis?
+  budgetLines  BudgetLine[]
+  ipcLines     IPCLine[]
+
+  @@index([boqId, parentId])
+}
+
+enum RateComponentType {
+  MATERIAL
+  LABOR
+  EQUIPMENT
+}
+
+model RateAnalysis {
+  id            Int     @id @default(autoincrement())
+  boqItemId     Int     @unique
+  materialCost  Decimal @db.Decimal(14, 2) @default(0)
+  laborCost     Decimal @db.Decimal(14, 2) @default(0)
+  equipmentCost Decimal @db.Decimal(14, 2) @default(0)
+  overheadPct   Decimal @db.Decimal(6, 2) @default(0)
+  profitPct     Decimal @db.Decimal(6, 2) @default(0)
+  rate          Decimal @db.Decimal(14, 2) @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  boqItem BOQItem             @relation(fields: [boqItemId], references: [id], onDelete: Cascade)
+  lines   RateAnalysisLine[]
+}
+
+model RateAnalysisLine {
+  id              Int               @id @default(autoincrement())
+  rateAnalysisId  Int
+  componentType   RateComponentType
+  description     String
+  quantity        Decimal           @db.Decimal(14, 2)
+  unit            String
+  unitRate        Decimal           @db.Decimal(14, 2)
+  amount          Decimal           @db.Decimal(14, 2)
+  rateAnalysis    RateAnalysis      @relation(fields: [rateAnalysisId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================================
+// MODULE: PROJECT PROGRESS (activities, S-curve, labor, equipment)
+// =====================================================================
+model Activity {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  parentId  Int?
+  wbsCode   String // Work Breakdown Structure code, e.g. 1.2.3
+  name      String
+  unit      String?
+  totalQty  Decimal  @db.Decimal(14, 2) @default(0)
+  startDate DateTime?
+  endDate   DateTime?
+  status    String   @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | ON_HOLD
+  createdAt DateTime @default(now())
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   Activity?          @relation("ActivityTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Activity[]         @relation("ActivityTree")
+  progress ActivityProgress[]
+  laborLogs LaborLog[]
+  materialRequests MaterialRequest[]
+  budgetLines BudgetLine[]
+  riskAssessments RiskAssessment[]
+
+  @@index([projectId])
+}
+
+model ActivityProgress {
+  id         Int      @id @default(autoincrement())
+  activityId Int
+  reportDate DateTime @default(now())
+  plannedQty Decimal  @db.Decimal(14, 2) @default(0)
+  actualQty  Decimal  @db.Decimal(14, 2) @default(0)
+  percent    Decimal  @db.Decimal(6, 2) @default(0) // computed actual/totalQty
+  notes      String?
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, reportDate])
+}
+
+// S-curve data points per project (planned % vs actual % over time)
+model ProjectProgress {
+  id             Int      @id @default(autoincrement())
+  projectId      Int
+  reportDate     DateTime @default(now())
+  plannedPercent Decimal  @db.Decimal(6, 2) @default(0)
+  actualPercent  Decimal  @db.Decimal(6, 2) @default(0)
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, reportDate])
+}
+
+// Labor deployment per project / activity
+model LaborLog {
+  id         Int       @id @default(autoincrement())
+  projectId  Int
+  activityId Int?
+  date       DateTime  @default(now())
+  laborType  String? // MASON | LABOUR | ELECTRICIAN | CARPENTER | ...
+  count      Int       @default(0)
+  notes      String?
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, date])
+}
+
+// Site equipment register & usage
+model Equipment {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  code      String   @unique
+  name      String
+  type      String? // EXCAVATOR | CRANE | MIXER | GENERATOR | ...
+  capacity  String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  usageLogs EquipmentUsageLog[]
+
+  @@index([projectId])
+}
+
+model EquipmentUsageLog {
+  id                 Int      @id @default(autoincrement())
+  equipmentId        Int
+  projectId          Int
+  date               DateTime @default(now())
+  hours              Decimal  @db.Decimal(8, 2) @default(0)
+  operatorEmployeeId Int?
+  notes              String?
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, date])
+}
+
+// =====================================================================
+// MODULE: BUDGETING (by BOQ item / activity / cost type) + alerts
+// =====================================================================
+model Budget {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  name        String
+  period      String? // e.g. "FY2026-27"
+  totalAmount Decimal  @db.Decimal(16, 2) @default(0)
+  status      String   @default("DRAFT") // DRAFT | APPROVED | REVISED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lines   BudgetLine[]
+
+  @@index([projectId])
+}
+
+model BudgetLine {
+  id         Int      @id @default(autoincrement())
+  budgetId   Int
+  activityId Int?
+  boqItemId  Int?
+  costType   CostType @default(MATERIAL)
+  accountId  Int?
+  amount     Decimal  @db.Decimal(16, 2)
+
+  budget   Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  boqItem  BOQItem?  @relation(fields: [boqItemId], references: [id], onDelete: SetNull)
+  account  Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+}
+
+model CostAlert {
+  id           Int       @id @default(autoincrement())
+  projectId    Int
+  budgetLineId Int?
+  thresholdPct Decimal   @db.Decimal(6, 2) @default(100)
+  message      String
+  triggeredAt  DateTime  @default(now())
+  resolved     Boolean   @default(false)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, resolved])
+}
+
+// =====================================================================
+// MODULE: COST CONTROL (cost centers, cost logs, VO, IPC)
+// =====================================================================
+enum CostType {
+  MATERIAL
+  LABOR
+  EQUIPMENT
+  OVERHEAD
+  OTHER
+}
+
+model CostCenter {
+  id        Int      @id @default(autoincrement())
+  projectId Int?
+  code      String   @unique
+  name      String
+  parentId  Int?
+
+  project  Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   CostCenter?  @relation("CostCenterTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children CostCenter[] @relation("CostCenterTree")
+  logs     CostLog[]
+}
+
+model CostLog {
+  id           Int      @id @default(autoincrement())
+  projectId    Int
+  costCenterId Int?
+  date         DateTime @default(now())
+  costType     CostType @default(MATERIAL)
+  description  String
+  amount       Decimal  @db.Decimal(14, 2)
+  refType      String? // MR | PO | GRN | PAYROLL | IPC | VO | LABOR | EQUIPMENT
+  refId        Int?
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, date])
+  @@index([costType])
+}
+
+model VariationOrder {
+  id               Int      @id @default(autoincrement())
+  projectId        Int
+  voNo             String   @unique
+  title            String
+  description      String?
+  amount           Decimal  @db.Decimal(16, 2)
+  status           String   @default("DRAFT") // DRAFT | PENDING | APPROVED | REJECTED
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+}
+
+model IPC {
+  id               Int      @id @default(autoincrement())
+  projectId        Int
+  ipcNo            String   @unique
+  period           String? // e.g. "IPC-02 / Aug 2026"
+  fromDate         DateTime?
+  toDate           DateTime?
+  grossValue       Decimal  @db.Decimal(16, 2) @default(0)
+  retention        Decimal  @db.Decimal(16, 2) @default(0)
+  deductions       Decimal  @db.Decimal(16, 2) @default(0)
+  netValue         Decimal  @db.Decimal(16, 2) @default(0)
+  status           String   @default("DRAFT") // DRAFT | PENDING | APPROVED | CERTIFIED
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lines   IPCLine[]
+
+  @@index([projectId, status])
+}
+
+model IPCLine {
+  id          Int      @id @default(autoincrement())
+  ipcId       Int
+  boqItemId   Int?
+  description String
+  currentQty  Decimal  @db.Decimal(14, 2) @default(0)
+  rate        Decimal  @db.Decimal(14, 2) @default(0)
+  amount      Decimal  @db.Decimal(16, 2) @default(0)
+
+  ipc      IPC      @relation(fields: [ipcId], references: [id], onDelete: Cascade)
+  boqItem  BOQItem? @relation(fields: [boqItemId], references: [id], onDelete: SetNull)
+}
+
+// =====================================================================
+// MODULE: MATERIAL REQUEST (project-wise) & ISSUE (store -> project)
+// =====================================================================
+model MaterialRequest {
+  id               Int      @id @default(autoincrement())
+  mrNo             String   @unique
+  projectId        Int
+  activityId       Int?
+  requestedById    Int?
+  requestedByName  String?
+  requiredDate     DateTime?
+  notes            String?
+  status           String   @default("DRAFT") // DRAFT | PENDING | APPROVED | PARTIALLY_ISSUED | ISSUED | REJECTED
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project  Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activity Activity?           @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  items    MaterialRequestItem[]
+  issues   MaterialIssue[]
+
+  @@index([projectId, status])
+}
+
+model MaterialRequestItem {
+  id          Int      @id @default(autoincrement())
+  requestId   Int
+  itemId      Int?
+  description String
+  quantity    Decimal  @db.Decimal(12, 2)
+  unit        String
+  issuedQty   Decimal  @db.Decimal(12, 2) @default(0)
+
+  request MaterialRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item    Item?           @relation(fields: [itemId], references: [id], onDelete: SetNull)
+}
+
+model MaterialIssue {
+  id          Int      @id @default(autoincrement())
+  issueNo     String   @unique
+  projectId   Int
+  requestId   Int?
+  warehouseId Int?
+  issuedById  Int?
+  issueDate   DateTime @default(now())
+  notes       String?
+
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  request   MaterialRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  items     MaterialIssueItem[]
+}
+
+model MaterialIssueItem {
+  id       Int    @id @default(autoincrement())
+  issueId  Int
+  itemId   Int?
+  quantity Decimal @db.Decimal(12, 2)
+
+  issue MaterialIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  item  Item?         @relation(fields: [itemId], references: [id], onDelete: SetNull)
+}
+
+// =====================================================================
+// MODULE: CORRESPONDENCE (Letter IN / Letter OUT / Internal Memo)
+// =====================================================================
+enum CorrespondenceType {
+  LETTER_IN
+  LETTER_OUT
+  INTERNAL_MEMO
+}
+
+model Correspondence {
+  id        Int                @id @default(autoincrement())
+  refNo     String             @unique // auto: e.g. LI/PRJ-001/2026/0001
+  type      CorrespondenceType
+  projectId Int?
+  date      DateTime           @default(now())
+  fromName  String?
+  toName    String?
+  subject   String
+  body      String?
+  status    String             @default("SENT") // DRAFT | SENT | RECEIVED | FILED
+  createdAt DateTime           @default(now())
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([type, date])
+}
+
+// =====================================================================
+// MODULE: DOCUMENT CONTROL SYSTEM (ISO-compliant, versioned)
+// =====================================================================
+enum IsoStandard {
+  ISO9001
+  ISO14001
+  ISO45001
+  NONE
+}
+
+model DocumentCategory {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  type        String   @default("DOCUMENT") // POLICY | PROCEDURE | SOP | FORM | RECORD | MANUAL | OTHER
+  module      String   // QUALITY | ENVIRONMENT | SAFETY | HR | PROCUREMENT | GENERAL
+  description String?
+  createdAt   DateTime @default(now())
+
+  documents Document[]
+}
+
+model Document {
+  id             Int         @id @default(autoincrement())
+  docCode        String      @unique // auto: e.g. RES/QMS/PRC/001
+  title          String
+  categoryId     Int?
+  module         String
+  isoStandard    IsoStandard @default(NONE)
+  description    String?
+  status         String      @default("DRAFT") // DRAFT | UNDER_REVIEW | APPROVED | OBSOLETE
+  effectiveDate  DateTime?
+  expiryDate     DateTime?
+  currentVersion String      @default("1.0")
+  ownerUserId    Int?
+  projectId      Int?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  category DocumentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  project  Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  owner    User?             @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  versions DocumentVersion[]
+
+  @@index([status])
+  @@index([expiryDate])
+}
+
+model DocumentVersion {
+  id           Int      @id @default(autoincrement())
+  documentId   Int
+  versionNo    String
+  fileName     String
+  fileUrl      String
+  changeSummary String?
+  uploadedById Int?
+  status       String   @default("DRAFT")
+  createdAt    DateTime @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, versionNo])
+}
+
+// =====================================================================
+// MODULE: ISO 9001 / 14001 / 45001 COMPLIANCE
+// =====================================================================
+model NCR {
+  id               Int      @id @default(autoincrement())
+  ncrNo            String   @unique // auto: NCR/PRJ-001/2026/0001
+  projectId        Int?
+  date             DateTime @default(now())
+  source           String?  // INSPECTION | AUDIT | CUSTOMER | INTERNAL
+  description      String
+  severity         String   @default("MINOR") // MINOR | MAJOR | CRITICAL
+  status           String   @default("OPEN") // OPEN | UNDER_REVIEW | ACTION_TAKEN | CLOSED
+  approvalRequestId Int?    @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  correctiveActions CorrectiveAction[]
+
+  @@index([status])
+}
+
+model CorrectiveAction {
+  id            Int      @id @default(autoincrement())
+  ncrId         Int?
+  type          String   @default("CORRECTIVE") // CORRECTIVE | PREVENTIVE
+  title         String
+  rootCause     String?
+  action        String
+  responsibleId Int?
+  targetDate    DateTime?
+  status        String   @default("OPEN") // OPEN | IN_PROGRESS | VERIFIED | CLOSED
+  evidence      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ncr NCR? @relation(fields: [ncrId], references: [id], onDelete: SetNull)
+}
+
+model RiskAssessment {
+  id              Int      @id @default(autoincrement())
+  projectId       Int?
+  activityId      Int?
+  date            DateTime @default(now())
+  hazard          String
+  risk            String?
+  likelihood      Int      @default(1) // 1-5
+  severity        Int      @default(1) // 1-5
+  riskRating      Int      @default(1) // likelihood * severity
+  controlMeasures String?
+  status          String   @default("OPEN") // OPEN | MITIGATED | CLOSED
+  assessedById    Int?
+  createdAt       DateTime @default(now())
+
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+}
+
+model TrainingRecord {
+  id              Int      @id @default(autoincrement())
+  employeeId      Int?
+  trainingTitle   String
+  provider        String?
+  trainingDate    DateTime?
+  expiryDate      DateTime?
+  certificateUrl  String?
+  competencyLevel String? // BASIC | INTERMEDIATE | ADVANCED
+  createdAt       DateTime @default(now())
+
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([expiryDate])
+}
+
+model EnvironmentalAspect {
+  id              Int      @id @default(autoincrement())
+  projectId       Int?
+  date            DateTime @default(now())
+  activity        String
+  aspect          String // e.g. Dust emissions
+  impact          String // e.g. Air pollution
+  significance    String   @default("LOW") // LOW | MEDIUM | HIGH
+  controlMeasures String?
+  createdAt       DateTime @default(now())
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+model SafetyIncident {
+  id                   Int      @id @default(autoincrement())
+  projectId            Int?
+  date                 DateTime @default(now())
+  incidentType         String   @default("NEAR_MISS") // NEAR_MISS | FIRST_AID | LOST_TIME | FATAL
+  description          String
+  severity             String   @default("MINOR")
+  injuredEmployeeId    Int?
+  investigationStatus  String   @default("OPEN") // OPEN | UNDER_INVESTIGATION | COMPLETED | CLOSED
+  rootCause            String?
+  correctiveActions    String?
+  approvalRequestId    Int?     @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([investigationStatus])
+}
+
+// =====================================================================
+// AUTO REFERENCE NUMBER SYSTEM (config-driven)
+// Format: PREFIX / PROJECT CODE / YEAR / SERIAL  (fully configurable)
+// =====================================================================
+model NumberingConfig {
+  id                Int      @id @default(autoincrement())
+  docType           String   @unique // LETTER_IN | LETTER_OUT | INTERNAL_MEMO | PO | MR | GRN | IPC | VO | NCR | BOQ
+  prefix            String
+  separator         String   @default("/")
+  includeProjectCode Boolean @default(true)
+  includeYear       Boolean  @default(true)
+  padLength         Int      @default(4)
+  startSerial       Int      @default(1)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  counters NumberingCounter[]
+}
+
+model NumberingCounter {
+  id          Int    @id @default(autoincrement())
+  configId    Int
+  projectCode String @default("GEN") // "GEN" = company-wide
+  year        Int
+  lastSerial  Int
+
+  config NumberingConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@unique([configId, projectCode, year])
+}
