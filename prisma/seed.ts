@@ -241,6 +241,8 @@ async function main() {
     { docType: "VARIATION_ORDER", prefix: "VO", includeProjectCode: true, includeYear: true, padLength: 4 },
     { docType: "NCR", prefix: "NCR", includeProjectCode: true, includeYear: true, padLength: 4 },
     { docType: "BOQ", prefix: "BOQ", includeProjectCode: true, includeYear: false, padLength: 3 },
+    { docType: "STOCK_ADJUSTMENT", prefix: "ADJ", includeProjectCode: false, includeYear: true, padLength: 4 },
+    { docType: "STOCK_TRANSFER", prefix: "TRF", includeProjectCode: false, includeYear: true, padLength: 4 },
   ];
   for (const cfg of REF_CONFIGS) {
     await prisma.numberingConfig.upsert({
@@ -758,6 +760,103 @@ async function main() {
         data: { configId: config.id, projectCode, year, lastSerial: serial },
       });
     }
+  }
+
+  // -----------------------------------------------------------------
+  // Demo inventory movements (stock adjustment + transfer)
+  // -----------------------------------------------------------------
+  {
+    const mainStore = await prisma.warehouse.findUnique({ where: { code: "WH-MAIN" } });
+    const siteStore = await prisma.warehouse.findUnique({ where: { code: "WH-SITE" } });
+    const cement = await prisma.item.findUnique({ where: { code: "CEM-OPC-50" } });
+    const rebar = await prisma.item.findUnique({ where: { code: "STL-RBR-12" } });
+    if (mainStore && siteStore && cement && rebar) {
+      // Demo adjustment: 5 bags damaged in transit
+      const existingAdj = await prisma.stockTransaction.findFirst({
+        where: { refType: "ADJUSTMENT", notes: "Damaged bags removed (demo)" },
+      });
+      if (!existingAdj) {
+        await prisma.$transaction(async (tx) => {
+          await tx.stockTransaction.create({
+            data: {
+              transactionNo: "ADJ/GEN/2026/0001",
+              itemId: cement.id,
+              warehouseId: mainStore.id,
+              type: "ISSUE",
+              quantity: 5,
+              refType: "ADJUSTMENT",
+              notes: "Damaged bags removed (demo)",
+            },
+          });
+          const level = await tx.stockLevel.findUnique({
+            where: { itemId_warehouseId: { itemId: cement.id, warehouseId: mainStore.id } },
+          });
+          if (level) {
+            await tx.stockLevel.update({
+              where: { id: level.id },
+              data: { quantity: Math.max(0, level.quantity.toNumber() - 5) },
+            });
+          }
+        });
+      }
+
+      // Demo transfer: 40 bags of cement moved to the site store
+      const existingTrf = await prisma.stockTransaction.findFirst({
+        where: { refType: "STOCK_TRANSFER", notes: "Site consumption (demo)" },
+      });
+      if (!existingTrf) {
+        await prisma.$transaction(async (tx) => {
+          const from = await tx.stockLevel.findUnique({
+            where: { itemId_warehouseId: { itemId: cement.id, warehouseId: mainStore.id } },
+          });
+          const to = await tx.stockLevel.findUnique({
+            where: { itemId_warehouseId: { itemId: cement.id, warehouseId: siteStore.id } },
+          });
+          await tx.stockTransaction.create({
+            data: {
+              transactionNo: "TRF/GEN/2026/0001-1-OUT",
+              itemId: cement.id,
+              warehouseId: mainStore.id,
+              type: "TRANSFER_OUT",
+              quantity: 40,
+              refType: "STOCK_TRANSFER",
+              notes: "Site consumption (demo)",
+            },
+          });
+          await tx.stockTransaction.create({
+            data: {
+              transactionNo: "TRF/GEN/2026/0001-1-IN",
+              itemId: cement.id,
+              warehouseId: siteStore.id,
+              type: "TRANSFER_IN",
+              quantity: 40,
+              refType: "STOCK_TRANSFER",
+              notes: "Site consumption (demo)",
+            },
+          });
+          if (from) {
+            await tx.stockLevel.update({
+              where: { id: from.id },
+              data: { quantity: Math.max(0, from.quantity.toNumber() - 40) },
+            });
+          }
+          if (to) {
+            await tx.stockLevel.update({
+              where: { id: to.id },
+              data: { quantity: to.quantity.toNumber() + 40 },
+            });
+          } else {
+            await tx.stockLevel.create({
+              data: { itemId: cement.id, warehouseId: siteStore.id, quantity: 40 },
+            });
+          }
+        });
+      }
+    }
+    // Always keep the counters in sync with the hardcoded demo numbers.
+    await bumpCounter("STOCK_ADJUSTMENT", "GEN", 2026, 1);
+    await bumpCounter("STOCK_TRANSFER", "GEN", 2026, 1);
+    console.log("  • Demo inventory movements seeded");
   }
 
   {

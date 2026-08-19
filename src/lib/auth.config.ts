@@ -9,5 +9,9 @@ import type { NextAuthConfig } from "next-auth";
 export const authConfig = {
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
+  // Trust the Host header so `next start` (production) works on localhost
+  // without setting AUTH_TRUST_HOST. Dev auto-trusts localhost; production
+  // would otherwise throw "UntrustedHost".
+  trustHost: true,
   providers: [],
 } satisfies NextAuthConfig;

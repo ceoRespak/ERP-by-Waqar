@@ -338,6 +338,8 @@ export const REF_DOC_TYPES = {
   VARIATION_ORDER: "VARIATION_ORDER",
   NCR: "NCR",
   BOQ: "BOQ",
+  STOCK_ADJUSTMENT: "STOCK_ADJUSTMENT",
+  STOCK_TRANSFER: "STOCK_TRANSFER",
 } as const;
 
 export type RefDocType = (typeof REF_DOC_TYPES)[keyof typeof REF_DOC_TYPES];

@@ -41,6 +41,8 @@ export const DEFAULT_REF_CONFIGS: {
   { docType: REF_DOC_TYPES.VARIATION_ORDER, prefix: "VO", includeProjectCode: true, includeYear: true, padLength: 4, startSerial: 1 },
   { docType: REF_DOC_TYPES.NCR, prefix: "NCR", includeProjectCode: true, includeYear: true, padLength: 4, startSerial: 1 },
   { docType: REF_DOC_TYPES.BOQ, prefix: "BOQ", includeProjectCode: true, includeYear: false, padLength: 3, startSerial: 1 },
+  { docType: REF_DOC_TYPES.STOCK_ADJUSTMENT, prefix: "ADJ", includeProjectCode: false, includeYear: true, padLength: 4, startSerial: 1 },
+  { docType: REF_DOC_TYPES.STOCK_TRANSFER, prefix: "TRF", includeProjectCode: false, includeYear: true, padLength: 4, startSerial: 1 },
 ];
 
 /** Ensure the built-in numbering configs exist (idempotent, used by seed). */

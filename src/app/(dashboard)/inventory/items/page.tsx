@@ -1,11 +1,15 @@
 import { requirePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { ItemForm } from "@/components/inventory/item-form";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { formatNumber } from "@/lib/utils";
+import { parsePage } from "@/lib/pagination";
+
+const PAGE_SIZE = 20;
 
 type Item = Awaited<ReturnType<typeof prisma.item.findMany>>[number] & {
   category: { name: string } | null;
@@ -13,8 +17,24 @@ type Item = Awaited<ReturnType<typeof prisma.item.findMany>>[number] & {
 };
 
 const columns: Column<Item>[] = [
-  { key: "code", header: "Code", render: (r) => <span className="font-medium">{r.code}</span> },
-  { key: "name", header: "Name" },
+  {
+    key: "code",
+    header: "Code",
+    render: (r) => (
+      <Link href={`/inventory/items/${r.id}`} className="font-medium text-primary hover:underline">
+        {r.code}
+      </Link>
+    ),
+  },
+  {
+    key: "name",
+    header: "Name",
+    render: (r) => (
+      <Link href={`/inventory/items/${r.id}`} className="hover:underline">
+        {r.name}
+      </Link>
+    ),
+  },
   { key: "category", header: "Category", render: (r) => r.category?.name ?? "—" },
   { key: "unit", header: "Unit" },
   {
@@ -31,8 +51,14 @@ const columns: Column<Item>[] = [
   },
 ];
 
-export default async function ItemsPage() {
+export default async function ItemsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requirePermission(PERMISSIONS.INVENTORY_READ);
+  const params = await searchParams;
+  const page = parsePage(params.page);
   const [items, categories] = await Promise.all([
     prisma.item.findMany({
       include: { category: true, stockLevels: { include: { warehouse: true } } },
@@ -46,7 +72,7 @@ export default async function ItemsPage() {
       <PageHeader title="Items" description="Master list of all materials and services tracked in inventory." />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <DataTable columns={columns} rows={items as Item[]} rowKey={(r) => r.id} emptyMessage="No items yet." />
+          <DataTable columns={columns} rows={items as Item[]} rowKey={(r) => r.id} emptyMessage="No items yet." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/items" />
         </div>
         <div>
           <ItemForm categories={categories} />

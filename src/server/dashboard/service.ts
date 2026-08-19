@@ -10,21 +10,25 @@ export async function getDashboardStats() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const [pendingApprovals, requisitionCount, poCount, lowStockItems, employeeCount, activeProjects, vehicleCount, vendorCount] =
+  const [pendingApprovals, requisitionCount, poCount, employeeCount, activeProjects, vehicleCount, vendorCount] =
     await Promise.all([
       prisma.approvalRequest.count({ where: { status: "PENDING" } }),
       prisma.purchaseRequisition.count(),
       prisma.purchaseOrder.count(),
-      prisma.stockLevel.findMany({
-        where: { quantity: { lte: 0 } },
-        take: 10,
-        include: { item: true, warehouse: true },
-      }),
       prisma.employee.count({ where: { status: "ACTIVE" } }),
       prisma.project.count({ where: { status: "ACTIVE" } }),
       prisma.vehicle.count({ where: { status: "ACTIVE" } }),
       prisma.vendor.count(),
     ]);
+
+  // Low / empty stock: quantity at or below the item's reorder level.
+  const allStock = await prisma.stockLevel.findMany({
+    take: 200,
+    include: { item: true, warehouse: true },
+  });
+  const lowStockItems = allStock
+    .filter((s) => s.quantity.toNumber() <= s.item.reorderLevel.toNumber())
+    .slice(0, 10);
 
   const [
     openBudgetAlerts,
