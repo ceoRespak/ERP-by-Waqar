@@ -8,28 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
 import { Loader2, Plus } from "lucide-react";
 
-export function UserForm({ roles }: { roles: { id: number; name: string }[] }) {
-  const { submit, loading, error } = useSubmit("/api/settings/users", "/settings");
-  const [f, setF] = useState({ name: "", email: "", password: "", phone: "", roleIds: [] as number[] });
+/** Step 1 — create a user with basic profile only (no roles/permissions). */
+export function UserForm() {
+  const { submit, loading, error } = useSubmit("/api/settings/users", "/settings/users");
+  const [f, setF] = useState({ name: "", email: "", password: "", phone: "" });
   const set = (k: keyof typeof f, v: string) => setF((prev) => ({ ...prev, [k]: v }));
-
-  function toggleRole(roleId: number) {
-    setF((prev) => ({
-      ...prev,
-      roleIds: prev.roleIds.includes(roleId)
-        ? prev.roleIds.filter((r) => r !== roleId)
-        : [...prev.roleIds, roleId],
-    }));
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!f.name || !f.email || !f.password) return;
     await submit({
       name: f.name,
       email: f.email,
       password: f.password,
       phone: f.phone || null,
-      roleIds: f.roleIds,
+      roleIds: [],
     });
   }
 
@@ -53,20 +46,13 @@ export function UserForm({ roles }: { roles: { id: number; name: string }[] }) {
             <Input type="password" value={f.password} onChange={(e) => set("password", e.target.value)} required minLength={6} />
           </div>
           <div className="space-y-2">
-            <Label>Roles *</Label>
-            <div className="space-y-1.5">
-              {roles.map((r) => (
-                <label key={r.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                  <input type="checkbox" checked={f.roleIds.includes(r.id)} onChange={() => toggleRole(r.id)} />
-                  {r.name}
-                </label>
-              ))}
-            </div>
+            <Label>Phone</Label>
+            <Input value={f.phone} onChange={(e) => set("phone", e.target.value)} />
           </div>
+          <p className="text-xs text-muted-foreground">Next step: open the user and assign projects + per-project permissions.</p>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading || f.roleIds.length === 0} className="w-full">
-            {loading ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
-            {loading ? "Creating..." : "Create User"}
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />} {loading ? "Creating..." : "Create User"}
           </Button>
         </form>
       </CardContent>

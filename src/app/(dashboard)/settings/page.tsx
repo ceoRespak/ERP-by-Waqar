@@ -41,13 +41,13 @@ const columns: Column<Row>[] = [
 
 export default async function SettingsPage() {
   await requirePermission(PERMISSIONS.SETTINGS_READ);
-  const [users, roles] = await Promise.all([listUsers(), prisma.role.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })]);
+  const users = await listUsers();
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Users & Roles"
-        description="Manage system users and their assigned roles."
+        title="Users & Access"
+        description="Create users (basic profile) then assign projects and per-project permissions. Roles are reusable permission templates."
         actionHref="/settings/roles"
         actionLabel="Manage Roles & Permissions"
       />
@@ -55,7 +55,7 @@ export default async function SettingsPage() {
         <div className="lg:col-span-2">
           <DataTable columns={columns} rows={users} rowKey={(r) => r.id} emptyMessage="No users yet." />
         </div>
-        <UserForm roles={roles} />
+        <UserForm />
       </div>
     </div>
   );
