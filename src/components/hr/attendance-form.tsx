@@ -9,11 +9,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
 import { Loader2, Plus } from "lucide-react";
 
-const STATUSES = ["PRESENT", "ABSENT", "LEAVE", "HALF_DAY"];
+const STATUSES = ["PRESENT", "ABSENT", "LATE", "HALF_DAY", "LEAVE", "HOLIDAY"];
 
-export function AttendanceForm({ employees }: { employees: { id: number; empCode: string; firstName: string; lastName: string }[] }) {
+export function AttendanceForm({
+  employees,
+  projects,
+}: {
+  employees: { id: number; empCode: string; firstName: string; lastName: string }[];
+  projects: { id: number; name: string }[];
+}) {
   const { submit, loading, error } = useSubmit("/api/hr/attendance", "/hr/attendance");
   const [employeeId, setEmployeeId] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [status, setStatus] = useState("PRESENT");
   const [checkIn, setCheckIn] = useState("09:00");
@@ -25,6 +32,7 @@ export function AttendanceForm({ employees }: { employees: { id: number; empCode
     if (!employeeId) return;
     await submit({
       employeeId: Number(employeeId),
+      projectId: projectId ? Number(projectId) : null,
       date,
       checkIn: checkIn || null,
       checkOut: checkOut || null,
@@ -46,6 +54,15 @@ export function AttendanceForm({ employees }: { employees: { id: number; empCode
               <option value="">— Select —</option>
               {employees.map((em) => (
                 <option key={em.id} value={em.id}>{em.empCode} — {em.firstName} {em.lastName}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Project / Site</Label>
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">— Use employee&apos;s current project —</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>
           </div>

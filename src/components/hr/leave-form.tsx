@@ -10,26 +10,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
 import { Loader2, Plus } from "lucide-react";
 
-const LEAVE_TYPES = ["CASUAL", "SICK", "ANNUAL", "UNPAID", "OTHER"];
+const STATUS_OPTIONS = ["PRESENT", "ABSENT", "LATE", "HALF_DAY", "LEAVE", "HOLIDAY"];
 
-export function LeaveForm({ employees }: { employees: { id: number; empCode: string; firstName: string; lastName: string }[] }) {
+export function LeaveForm({
+  employees,
+  leaveTypes,
+}: {
+  employees: { id: number; empCode: string; firstName: string; lastName: string }[];
+  leaveTypes: { code: string; name: string }[];
+}) {
   const { submit, loading, error } = useSubmit("/api/hr/leaves", "/hr/leaves");
   const [employeeId, setEmployeeId] = useState("");
-  const [leaveType, setLeaveType] = useState("CASUAL");
+  const [leaveType, setLeaveType] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [days, setDays] = useState("1");
+  const [isHalfDay, setIsHalfDay] = useState(false);
   const [reason, setReason] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!employeeId || !leaveType) return;
     await submit({
       employeeId: Number(employeeId),
       leaveType,
       fromDate,
       toDate,
-      days: Number(days),
       reason,
+      isHalfDay,
     });
   }
 
@@ -50,10 +57,11 @@ export function LeaveForm({ employees }: { employees: { id: number; empCode: str
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Leave Type</Label>
-            <Select value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
-              {LEAVE_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+            <Label>Leave Type *</Label>
+            <Select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} required>
+              <option value="">— Select —</option>
+              {leaveTypes.map((t) => (
+                <option key={t.code} value={t.code}>{t.name}</option>
               ))}
             </Select>
           </div>
@@ -67,10 +75,10 @@ export function LeaveForm({ employees }: { employees: { id: number; empCode: str
               <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} required />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Days</Label>
-            <Input type="number" min="0.5" step="0.5" value={days} onChange={(e) => setDays(e.target.value)} />
-          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isHalfDay} onChange={(e) => setIsHalfDay(e.target.checked)} className="h-4 w-4" />
+            Half day
+          </label>
           <div className="space-y-2">
             <Label>Reason *</Label>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} required />
