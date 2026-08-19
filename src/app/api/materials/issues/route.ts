@@ -5,9 +5,9 @@ import { listMaterialIssues, issueMaterials } from "@/server/materials/service";
 import { ok, fail, unauthorized, handleError } from "@/lib/api";
 
 export async function GET(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.MATERIALS_READ);
-  if (!user) return unauthorized();
   const projectId = new URL(req.url).searchParams.get("projectId");
+  const user = await apiRequirePermission(PERMISSIONS.MATERIALS_READ, projectId ? Number(projectId) : null);
+  if (!user) return unauthorized();
   try {
     return ok({ issues: await listMaterialIssues(projectId ? { projectId: Number(projectId) } : {}) });
   } catch (e) {
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.MATERIALS_CREATE);
-  if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.MATERIALS_CREATE, body?.projectId ? Number(body.projectId) : null);
+  if (!user) return unauthorized();
   if (!body?.projectId || !Array.isArray(body?.items) || body.items.length === 0) {
     return fail("projectId and at least one item are required");
   }

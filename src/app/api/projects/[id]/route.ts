@@ -5,9 +5,9 @@ import { getProjectDetail } from "@/server/projects/service";
 import { ok, unauthorized, handleError } from "@/lib/api";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await apiRequirePermission(PERMISSIONS.PROJECTS_READ);
-  if (!user) return unauthorized();
   const { id } = await params;
+  const user = await apiRequirePermission(PERMISSIONS.PROJECTS_READ, Number(id));
+  if (!user) return unauthorized();
   try {
     const detail = await getProjectDetail(Number(id));
     if (!detail) return ok({ error: "Project not found" }, { status: 404 });

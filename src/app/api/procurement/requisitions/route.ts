@@ -16,10 +16,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.PROCUREMENT_CREATE);
+  const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.PROCUREMENT_CREATE, body?.projectId ? Number(body.projectId) : null);
   if (!user) return unauthorized();
 
-  const body = await req.json().catch(() => null);
   if (!body?.title || !body?.items?.length) return fail("title and at least one item are required");
 
   try {

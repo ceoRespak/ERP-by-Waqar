@@ -5,9 +5,9 @@ import { listDprs, createDpr } from "@/server/sites/service";
 import { ok, fail, unauthorized, handleError } from "@/lib/api";
 
 export async function GET(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.SITES_READ);
-  if (!user) return unauthorized();
   const projectId = new URL(req.url).searchParams.get("projectId");
+  const user = await apiRequirePermission(PERMISSIONS.SITES_READ, projectId ? Number(projectId) : null);
+  if (!user) return unauthorized();
   try {
     return ok({ dprs: await listDprs(projectId ? { projectId: Number(projectId) } : {}) });
   } catch (e) {
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.SITES_CREATE);
-  if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.SITES_CREATE, body?.projectId ? Number(body.projectId) : null);
+  if (!user) return unauthorized();
   if (!body?.projectId || !body?.workDone) return fail("projectId and workDone are required");
   try {
     const record = await createDpr({

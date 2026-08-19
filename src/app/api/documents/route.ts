@@ -6,10 +6,10 @@ import { ok, fail, unauthorized, handleError } from "@/lib/api";
 import type { IsoStandard } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.DOCUMENTS_READ);
+  const projectId = new URL(req.url).searchParams.get("projectId");
+  const user = await apiRequirePermission(PERMISSIONS.DOCUMENTS_READ, projectId ? Number(projectId) : null);
   if (!user) return unauthorized();
   const docModule = new URL(req.url).searchParams.get("module") ?? undefined;
-  const projectId = new URL(req.url).searchParams.get("projectId");
   try {
     return ok({ documents: await listDocuments({ module: docModule, projectId: projectId ? Number(projectId) : undefined }) });
   } catch (e) {
@@ -18,9 +18,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.DOCUMENTS_CREATE);
-  if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.DOCUMENTS_CREATE, body?.projectId ? Number(body.projectId) : null);
+  if (!user) return unauthorized();
   if (!body?.docCode || !body?.title || !body?.module) return fail("docCode, title and module are required");
   try {
     const record = await createDocument({

@@ -5,9 +5,9 @@ import { createEquipmentUsage } from "@/server/progress/service";
 import { ok, fail, unauthorized, handleError } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.PROGRESS_CREATE);
-  if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.PROGRESS_CREATE, body?.projectId ? Number(body.projectId) : null);
+  if (!user) return unauthorized();
   if (!body?.equipmentId || !body?.projectId || !body?.hours) {
     return fail("equipmentId, projectId and hours are required");
   }

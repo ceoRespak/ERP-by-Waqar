@@ -5,9 +5,9 @@ import { listActivities, createActivity } from "@/server/progress/service";
 import { ok, fail, unauthorized, handleError } from "@/lib/api";
 
 export async function GET(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.PROGRESS_READ);
-  if (!user) return unauthorized();
   const projectId = new URL(req.url).searchParams.get("projectId");
+  const user = await apiRequirePermission(PERMISSIONS.PROGRESS_READ, projectId ? Number(projectId) : null);
+  if (!user) return unauthorized();
   if (!projectId) return fail("projectId is required");
   try {
     return ok({ activities: await listActivities(Number(projectId)) });
@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.PROGRESS_CREATE);
-  if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.PROGRESS_CREATE, body?.projectId ? Number(body.projectId) : null);
+  if (!user) return unauthorized();
   if (!body?.projectId || !body?.wbsCode || !body?.name) {
     return fail("projectId, wbsCode and name are required");
   }

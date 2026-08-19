@@ -15,9 +15,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await apiRequirePermission(PERMISSIONS.FINANCE_CREATE);
-  if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
+  const user = await apiRequirePermission(PERMISSIONS.FINANCE_CREATE, body?.projectId ? Number(body.projectId) : null);
+  if (!user) return unauthorized();
   if (!body?.clientId || !body?.lines?.length) return fail("clientId and lines are required");
   try {
     const record = await createClientInvoice({
