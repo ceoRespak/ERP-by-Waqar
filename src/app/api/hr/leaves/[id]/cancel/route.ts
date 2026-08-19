@@ -1,0 +1,17 @@
+import { NextRequest } from "next/server";
+import { apiRequirePermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/lib/constants";
+import { cancelLeave } from "@/server/hr/leaves";
+import { ok, unauthorized, handleError } from "@/lib/api";
+
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await apiRequirePermission(PERMISSIONS.HR_UPDATE);
+  if (!user) return unauthorized();
+  const { id } = await params;
+  try {
+    const record = await cancelLeave(Number(id), Number(user.id));
+    return ok({ leave: record });
+  } catch (e) {
+    return handleError(e);
+  }
+}
