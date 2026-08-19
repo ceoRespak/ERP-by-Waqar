@@ -20,7 +20,7 @@ export async function listMaterialRequests(opts: { projectId?: number; status?: 
     include: {
       project: { select: { id: true, code: true, name: true } },
       activity: { select: { id: true, wbsCode: true, name: true } },
-      items: true,
+      _count: { select: { items: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -191,7 +191,7 @@ export async function listMaterialIssues(opts: { projectId?: number } = {}) {
       project: { select: { id: true, code: true, name: true } },
       request: { select: { id: true, mrNo: true, status: true } },
       warehouse: { select: { id: true, code: true, name: true } },
-      items: { include: { item: { select: { id: true, code: true, name: true, unit: true } } } },
+      _count: { select: { items: true } },
     },
     orderBy: { issueDate: "desc" },
     take: 200,

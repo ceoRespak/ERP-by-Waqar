@@ -13,11 +13,13 @@ import { SubmitToApprovalButton } from "@/components/approvals/submit-button";
 import { MaterialRequestForm } from "@/components/materials/request-form";
 import { MaterialIssueForm } from "@/components/materials/issue-form";
 import { formatDate } from "@/lib/utils";
+import { parsePage, buildBaseHref } from "@/lib/pagination";
 
-type Props = { searchParams: Promise<{ projectId?: string }> };
+type Props = { searchParams: Promise<{ projectId?: string; page?: string }> };
 
 export default async function MaterialsPage({ searchParams }: Props) {
-  const { projectId } = await searchParams;
+  const { projectId, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
   const user = session?.user as AuthUser | undefined;
   if (!user) return <Link href="/login">Sign in</Link>;
@@ -60,7 +62,7 @@ export default async function MaterialsPage({ searchParams }: Props) {
       ),
     },
     { key: "activity", header: "Activity", render: (r) => (r.activity ? `${r.activity.wbsCode} ${r.activity.name}` : "—") },
-    { key: "lines", header: "Lines", className: "text-right", render: (r) => r.items.length },
+    { key: "lines", header: "Lines", className: "text-right", render: (r) => r._count.items },
     {
       key: "requiredDate",
       header: "Required",
@@ -83,7 +85,7 @@ export default async function MaterialsPage({ searchParams }: Props) {
     { key: "issueNo", header: "Issue No", render: (r) => <span className="font-mono text-xs">{r.issueNo}</span> },
     { key: "request", header: "Request", render: (r) => (r.request ? r.request.mrNo : "—") },
     { key: "warehouse", header: "Warehouse", render: (r) => r.warehouse?.code ?? "—" },
-    { key: "items", header: "Items", className: "text-right", render: (r) => r.items.length },
+    { key: "items", header: "Items", className: "text-right", render: (r) => r._count.items },
     { key: "issueDate", header: "Date", render: (r) => formatDate(r.issueDate) },
   ];
 
@@ -139,7 +141,7 @@ export default async function MaterialsPage({ searchParams }: Props) {
               <CardTitle className="text-base">Material Requests</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={reqColumns} rows={requests} rowKey={(r) => r.id} emptyMessage="No material requests yet." />
+              <DataTable columns={reqColumns} rows={requests} rowKey={(r) => r.id} emptyMessage="No material requests yet." page={page} pageSize={25} baseHref={buildBaseHref("/materials", { projectId })} />
             </CardContent>
           </Card>
 
@@ -148,7 +150,7 @@ export default async function MaterialsPage({ searchParams }: Props) {
               <CardTitle className="text-base">Material Issues</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={issueColumns} rows={issues} rowKey={(r) => r.id} emptyMessage="No issues yet." />
+              <DataTable columns={issueColumns} rows={issues} rowKey={(r) => r.id} emptyMessage="No issues yet." page={page} pageSize={25} baseHref={buildBaseHref("/materials", { projectId })} />
             </CardContent>
           </Card>
         </div>

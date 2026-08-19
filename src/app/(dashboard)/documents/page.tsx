@@ -10,11 +10,13 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { DocumentForm } from "@/components/documents/document-form";
 import { CategoryForm } from "@/components/documents/category-form";
 import { formatDate } from "@/lib/utils";
+import { parsePage, buildBaseHref } from "@/lib/pagination";
 
-type Props = { searchParams: Promise<{ module?: string }> };
+type Props = { searchParams: Promise<{ module?: string; page?: string }> };
 
 export default async function DocumentsPage({ searchParams }: Props) {
-  const { module } = await searchParams;
+  const { module, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
   const user = session?.user as AuthUser | undefined;
   if (!user) return <Link href="/login">Sign in</Link>;
@@ -115,7 +117,7 @@ export default async function DocumentsPage({ searchParams }: Props) {
               <CardTitle className="text-base">Documents ({documents.length})</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={columns} rows={documents} rowKey={(r) => r.id} emptyMessage="No documents yet." />
+              <DataTable columns={columns} rows={documents} rowKey={(r) => r.id} emptyMessage="No documents yet." page={page} pageSize={25} baseHref={buildBaseHref("/documents", { module })} />
             </CardContent>
           </Card>
         </div>

@@ -16,11 +16,13 @@ import { ProgressForm } from "@/components/progress/progress-form";
 import { LaborForm } from "@/components/progress/labor-form";
 import { EquipmentForm, EquipmentUsageForm } from "@/components/progress/equipment-forms";
 import { formatDate, formatNumber } from "@/lib/utils";
+import { parsePage, buildBaseHref } from "@/lib/pagination";
 
-type Props = { searchParams: Promise<{ projectId?: string }> };
+type Props = { searchParams: Promise<{ projectId?: string; page?: string }> };
 
 export default async function ProgressPage({ searchParams }: Props) {
-  const { projectId } = await searchParams;
+  const { projectId, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
   const user = session?.user as AuthUser | undefined;
   if (!user) return <Link href="/login">Sign in</Link>;
@@ -179,7 +181,7 @@ export default async function ProgressPage({ searchParams }: Props) {
           <CardContent className="space-y-4">
             <LaborForm projectId={pid} activities={formActivities} />
             <div className="p-0">
-              <DataTable columns={laborColumns} rows={laborLogs} rowKey={(r) => r.id} emptyMessage="No labor logs yet." />
+              <DataTable columns={laborColumns} rows={laborLogs} rowKey={(r) => r.id} emptyMessage="No labor logs yet." page={page} pageSize={10} baseHref={buildBaseHref("/progress", { projectId })} />
             </div>
           </CardContent>
         </Card>
@@ -194,7 +196,7 @@ export default async function ProgressPage({ searchParams }: Props) {
               <EquipmentUsageForm projectId={pid} equipments={equipments} />
             </div>
             <div className="p-0">
-              <DataTable columns={usageColumns} rows={usageLogs} rowKey={(r) => r.id} emptyMessage="No equipment usage logged yet." />
+              <DataTable columns={usageColumns} rows={usageLogs} rowKey={(r) => r.id} emptyMessage="No equipment usage logged yet." page={page} pageSize={10} baseHref={buildBaseHref("/progress", { projectId })} />
             </div>
           </CardContent>
         </Card>

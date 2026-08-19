@@ -15,11 +15,13 @@ import { TrainingForm } from "@/components/iso/training-form";
 import { AspectForm } from "@/components/iso/aspect-form";
 import { IncidentForm } from "@/components/iso/incident-form";
 import { formatDate } from "@/lib/utils";
+import { parsePage, buildBaseHref } from "@/lib/pagination";
 
-type Props = { searchParams: Promise<{ projectId?: string }> };
+type Props = { searchParams: Promise<{ projectId?: string; page?: string }> };
 
 export default async function IsoPage({ searchParams }: Props) {
-  const { projectId } = await searchParams;
+  const { projectId, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
   const user = session?.user as AuthUser | undefined;
   if (!user) return <Link href="/login">Sign in</Link>;
@@ -193,31 +195,31 @@ export default async function IsoPage({ searchParams }: Props) {
           <Card>
             <CardHeader><CardTitle className="text-base">Non-Conformance Reports</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={ncrColumns} rows={ncrs} rowKey={(r) => r.id} emptyMessage="No NCRs yet." />
+              <DataTable columns={ncrColumns} rows={ncrs} rowKey={(r) => r.id} emptyMessage="No NCRs yet." page={page} pageSize={20} baseHref={buildBaseHref("/iso", { projectId })} />
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle className="text-base">Risk Assessments</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={riskColumns} rows={risks} rowKey={(r) => r.id} emptyMessage="No risk assessments yet." />
+              <DataTable columns={riskColumns} rows={risks} rowKey={(r) => r.id} emptyMessage="No risk assessments yet." page={page} pageSize={20} baseHref={buildBaseHref("/iso", { projectId })} />
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle className="text-base">Training Records</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={trainingColumns} rows={training} rowKey={(r) => r.id} emptyMessage="No training records yet." />
+              <DataTable columns={trainingColumns} rows={training} rowKey={(r) => r.id} emptyMessage="No training records yet." page={page} pageSize={20} baseHref={buildBaseHref("/iso", { projectId })} />
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle className="text-base">Environmental Aspects</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={aspectColumns} rows={aspects} rowKey={(r) => r.id} emptyMessage="No environmental aspects yet." />
+              <DataTable columns={aspectColumns} rows={aspects} rowKey={(r) => r.id} emptyMessage="No environmental aspects yet." page={page} pageSize={20} baseHref={buildBaseHref("/iso", { projectId })} />
             </CardContent>
           </Card>
           <Card>
             <CardHeader><CardTitle className="text-base">Safety Incidents</CardTitle></CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={incidentColumns} rows={incidents} rowKey={(r) => r.id} emptyMessage="No incidents reported." />
+              <DataTable columns={incidentColumns} rows={incidents} rowKey={(r) => r.id} emptyMessage="No incidents reported." page={page} pageSize={20} baseHref={buildBaseHref("/iso", { projectId })} />
             </CardContent>
           </Card>
         </div>

@@ -1373,6 +1373,8 @@ model BudgetLine {
   activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
   boqItem  BOQItem?  @relation(fields: [boqItemId], references: [id], onDelete: SetNull)
   account  Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([costType])
 }
 
 model CostAlert {
@@ -1620,6 +1622,7 @@ model Document {
 
   @@index([status])
   @@index([expiryDate])
+  @@index([module])
 }
 
 model DocumentVersion {
@@ -1695,6 +1698,8 @@ model RiskAssessment {
 
   project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   activity Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  @@index([riskRating])
 }
 
 model TrainingRecord {

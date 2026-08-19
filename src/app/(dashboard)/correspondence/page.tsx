@@ -11,11 +11,13 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { CorrespondenceForm } from "@/components/correspondence/correspondence-form";
 import { CorrespondenceStatus } from "@/components/correspondence/status-control";
 import { formatDate } from "@/lib/utils";
+import { parsePage, buildBaseHref } from "@/lib/pagination";
 
-type Props = { searchParams: Promise<{ projectId?: string; type?: string }> };
+type Props = { searchParams: Promise<{ projectId?: string; type?: string; page?: string }> };
 
 export default async function CorrespondencePage({ searchParams }: Props) {
-  const { projectId, type } = await searchParams;
+  const { projectId, type, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
   const user = session?.user as AuthUser | undefined;
   if (!user) return <Link href="/login">Sign in</Link>;
@@ -107,7 +109,7 @@ export default async function CorrespondencePage({ searchParams }: Props) {
               <CardTitle className="text-base">Inbox & Outbox ({items.length})</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={columns} rows={items} rowKey={(r) => r.id} emptyMessage="No correspondence yet." />
+              <DataTable columns={columns} rows={items} rowKey={(r) => r.id} emptyMessage="No correspondence yet." page={page} pageSize={25} baseHref={buildBaseHref("/correspondence", { projectId, type })} />
             </CardContent>
           </Card>
         </div>

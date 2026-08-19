@@ -14,11 +14,13 @@ import { CostCenterForm } from "@/components/cost/cost-center-form";
 import { VariationForm } from "@/components/cost/variation-form";
 import { IpcForm } from "@/components/cost/ipc-form";
 import { formatMoney, formatDate } from "@/lib/utils";
+import { parsePage, buildBaseHref } from "@/lib/pagination";
 
-type Props = { searchParams: Promise<{ projectId?: string }> };
+type Props = { searchParams: Promise<{ projectId?: string; page?: string }> };
 
 export default async function CostPage({ searchParams }: Props) {
-  const { projectId } = await searchParams;
+  const { projectId, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
   const user = session?.user as AuthUser | undefined;
   if (!user) return <Link href="/login">Sign in</Link>;
@@ -147,7 +149,7 @@ export default async function CostPage({ searchParams }: Props) {
               <CardTitle className="text-base">Cost Ledger</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={logColumns} rows={costLogs} rowKey={(r) => r.id} emptyMessage="No cost entries yet — log your first cost." />
+              <DataTable columns={logColumns} rows={costLogs} rowKey={(r) => r.id} emptyMessage="No cost entries yet — log your first cost." page={page} pageSize={25} baseHref={buildBaseHref("/cost", { projectId })} />
             </CardContent>
           </Card>
 
@@ -156,7 +158,7 @@ export default async function CostPage({ searchParams }: Props) {
               <CardTitle className="text-base">Variation Orders</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={voColumns} rows={variations} rowKey={(r) => r.id} emptyMessage="No variation orders yet." />
+              <DataTable columns={voColumns} rows={variations} rowKey={(r) => r.id} emptyMessage="No variation orders yet." page={page} pageSize={25} baseHref={buildBaseHref("/cost", { projectId })} />
             </CardContent>
           </Card>
 
@@ -165,7 +167,7 @@ export default async function CostPage({ searchParams }: Props) {
               <CardTitle className="text-base">Interim Payment Certificates</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <DataTable columns={ipcColumns} rows={ipcs} rowKey={(r) => r.id} emptyMessage="No IPCs yet." />
+              <DataTable columns={ipcColumns} rows={ipcs} rowKey={(r) => r.id} emptyMessage="No IPCs yet." page={page} pageSize={25} baseHref={buildBaseHref("/cost", { projectId })} />
             </CardContent>
           </Card>
         </div>
