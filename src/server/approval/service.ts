@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/server/audit";
+import { userHasPermission } from "@/lib/access";
 import {
   APPROVAL_ENTITY_TYPES,
   ENTITY_STATUS_MAP,
@@ -171,7 +172,12 @@ export async function approveStep(params: {
 
   const approver = await getApprover(params.userId);
   if (!approver) throw new Error("Approver not found.");
-  if (!canActOnStep(step, approver)) {
+  // Dynamic permission: holding the module's :approve permission authorizes the step.
+  const canByPermission = await userHasPermission(
+    { id: String(params.userId), roles: approver.roles.map((r) => r.role.name), permissions: [] },
+    `${request.module}:approve`
+  );
+  if (!canByPermission && !canActOnStep(step, approver)) {
     throw new Error("You are not authorized to approve this step.");
   }
 
@@ -241,7 +247,11 @@ export async function rejectStep(params: {
 
   const approver = await getApprover(params.userId);
   if (!approver) throw new Error("Approver not found.");
-  if (!canActOnStep(step, approver)) {
+  const canByPermission = await userHasPermission(
+    { id: String(params.userId), roles: approver.roles.map((r) => r.role.name), permissions: [] },
+    `${request.module}:approve`
+  );
+  if (!canByPermission && !canActOnStep(step, approver)) {
     throw new Error("You are not authorized to reject this step.");
   }
 

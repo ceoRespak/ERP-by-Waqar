@@ -1,28 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { PERMISSION_CATALOG } from "../src/lib/permissions-catalog";
 
 const prisma = new PrismaClient();
-
-const MODULES = [
-  "procurement",
-  "inventory",
-  "finance",
-  "hr",
-  "vehicles",
-  "vendors",
-  "clients",
-  "sites",
-  "settings",
-  "projects",
-  "boq",
-  "progress",
-  "budget",
-  "cost",
-  "documents",
-  "iso",
-  "correspondence",
-];
-const ACTIONS = ["read", "create", "update", "delete", "approve"];
 
 async function main() {
   console.log("🌱 Seeding RESPAK ERP database...");
@@ -45,159 +25,41 @@ async function main() {
   console.log("  • Company:", company.name);
 
   // -----------------------------------------------------------------
-  // Permissions (all modules x actions)
+  // Permissions — dynamic catalog (operational + approval + section)
   // -----------------------------------------------------------------
   const permissionByKey = new Map<string, number>();
-  for (const module of MODULES) {
-    for (const action of ACTIONS) {
-      const key = `${module}:${action}`;
-      const perm = await prisma.permission.upsert({
-        where: { key },
-        update: {},
-        create: { key, module, action, description: `${module} — ${action}` },
-      });
-      permissionByKey.set(key, perm.id);
-    }
+  for (const p of PERMISSION_CATALOG) {
+    const perm = await prisma.permission.upsert({
+      where: { key: p.key },
+      update: { category: p.category, section: p.section ?? null, description: p.description ?? `${p.module} — ${p.action}` },
+      create: { key: p.key, module: p.module, action: p.action, category: p.category, section: p.section ?? null, description: p.description ?? `${p.module} — ${p.action}` },
+    });
+    permissionByKey.set(p.key, perm.id);
   }
   const allPermissionIds = [...permissionByKey.values()];
   console.log(`  • Permissions: ${allPermissionIds.length}`);
 
   // -----------------------------------------------------------------
-  // Roles
+  // Roles — dynamic / admin-managed. NO hardcoded permission sets.
+  // Only SUPER_ADMIN is created as the built-in bypass marker; the other
+  // legacy role names are kept as EMPTY containers so the generic
+  // approval-chain steps can still resolve (they grant NO access —
+  // access is controlled by UserProjectPermission grants).
   // -----------------------------------------------------------------
-  const roleDefs: { name: string; description: string; perms: string[] }[] = [
-    {
-      name: "SUPER_ADMIN",
-      description: "Full system access",
-      perms: MODULES.flatMap((m) => ACTIONS.map((a) => `${m}:${a}`)),
-    },
-    {
-      name: "ADMIN",
-      description: "Full access (operational)",
-      perms: MODULES.flatMap((m) => ACTIONS.map((a) => `${m}:${a}`)),
-    },
-    {
-      name: "PROCUREMENT_MANAGER",
-      description: "Procurement & vendor management",
-      perms: [
-        "procurement:read", "procurement:create", "procurement:update", "procurement:approve",
-        "vendors:read", "vendors:create", "vendors:update",
-        "inventory:read",
-      ],
-    },
-    {
-      name: "STORE_KEEPER",
-      description: "Inventory & receiving",
-      perms: [
-        "inventory:read", "inventory:create", "inventory:update",
-        "procurement:read",
-      ],
-    },
-    {
-      name: "FINANCE_MANAGER",
-      description: "Finance approvals & management",
-      perms: [
-        "finance:read", "finance:create", "finance:update", "finance:approve",
-        "procurement:read",
-        "clients:read",
-        "sites:read",
-      ],
-    },
-    {
-      name: "ACCOUNTANT",
-      description: "Day-to-day accounting",
-      perms: ["finance:read", "finance:create", "finance:update"],
-    },
-    {
-      name: "HR_MANAGER",
-      description: "HR & payroll management",
-      perms: ["hr:read", "hr:create", "hr:update", "hr:approve", "settings:read"],
-    },
-    {
-      name: "HR_EXECUTIVE",
-      description: "HR operations",
-      perms: ["hr:read", "hr:create", "hr:update"],
-    },
-    {
-      name: "PROJECT_MANAGER",
-      description: "Site / project oversight & approvals",
-      perms: [
-        "sites:read", "sites:create", "sites:update", "sites:approve",
-        "clients:read",
-        "procurement:read", "procurement:create",
-        "vehicles:read", "vehicles:create",
-        "vendors:read",
-        "inventory:read",
-        "projects:read", "projects:create", "projects:update",
-        "boq:read", "boq:create", "boq:update", "boq:approve",
-        "progress:read", "progress:create", "progress:update", "progress:approve",
-        "budget:read", "budget:create",
-        "cost:read", "cost:create",
-        "documents:read", "documents:create", "documents:update",
-        "iso:read", "iso:create", "iso:update",
-        "correspondence:read", "correspondence:create",
-      ],
-    },
-    {
-      name: "SITE_ENGINEER",
-      description: "Site operations (DPR, check requests, submittals)",
-      perms: [
-        "sites:read", "sites:create", "sites:update",
-        "vehicles:read",
-        "inventory:read",
-        "vendors:read",
-        "projects:read",
-        "boq:read",
-        "progress:read", "progress:create", "progress:update",
-        "documents:read", "documents:create",
-        "iso:read", "iso:create",
-      ],
-    },
-    {
-      name: "QA_MANAGER",
-      description: "Quality assurance — documents & NCRs",
-      perms: [
-        "documents:read", "documents:create", "documents:update", "documents:approve",
-        "iso:read", "iso:create", "iso:update", "iso:approve",
-        "projects:read",
-      ],
-    },
-    {
-      name: "HSE_MANAGER",
-      description: "Health, safety & environment",
-      perms: [
-        "iso:read", "iso:create", "iso:update", "iso:approve",
-        "documents:read", "documents:create",
-        "projects:read",
-        "hr:read",
-      ],
-    },
-    {
-      name: "EMPLOYEE",
-      description: "Employee self-service (attendance, leaves, profile)",
-      perms: ["hr:read"],
-    },
-  ];
-
+  const roleNames = ["SUPER_ADMIN", "ADMIN", "PROCUREMENT_MANAGER", "STORE_KEEPER", "FINANCE_MANAGER", "ACCOUNTANT", "HR_MANAGER", "HR_EXECUTIVE", "PROJECT_MANAGER", "SITE_ENGINEER", "QA_MANAGER", "HSE_MANAGER", "EMPLOYEE"];
   const roleByName = new Map<string, number>();
-  for (const def of roleDefs) {
+  for (const name of roleNames) {
     const role = await prisma.role.upsert({
-      where: { name: def.name },
-      update: { description: def.description },
-      create: { name: def.name, description: def.description, isSystem: true },
+      where: { name },
+      update: {},
+      create: { name, description: name === "SUPER_ADMIN" ? "Full system access (bypasses all checks)" : `${name} (dynamic role)`, isSystem: name === "SUPER_ADMIN" },
     });
-    roleByName.set(def.name, role.id);
-
-    // Sync permissions
-    const permIds = def.perms.map((k) => permissionByKey.get(k)!).filter(Boolean);
+    roleByName.set(name, role.id);
+    // Dynamic model: roles carry NO fixed permissions. Any access is granted
+    // per (user, project) via UserProjectPermission.
     await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
-    if (permIds.length) {
-      await prisma.rolePermission.createMany({
-        data: permIds.map((permissionId) => ({ roleId: role.id, permissionId })),
-      });
-    }
   }
-  console.log(`  • Roles: ${roleByName.size}`);
+  console.log(`  • Roles: ${roleByName.size} (containers, no fixed permissions)`);
 
   // -----------------------------------------------------------------
   // Users
@@ -231,6 +93,40 @@ async function main() {
   await ensureUser("qa@respak.pk", "QA Manager", "Password@123", ["QA_MANAGER"]);
   await ensureUser("hse@respak.pk", "HSE Manager", "Password@123", ["HSE_MANAGER"]);
   console.log("  • Users created");
+
+  // -----------------------------------------------------------------
+  // Demo user grants (dynamic model) — company-wide (projectId null)
+  // Users are generic; access is defined by UserProjectPermission.
+  // superadmin@ bypasses via SUPER_ADMIN and needs no grants.
+  // -----------------------------------------------------------------
+  const demoGrants: { email: string; perms: string[]; permsFull?: boolean }[] = [
+    { email: "admin@respak.pk", perms: [], permsFull: true },
+    { email: "procurement@respak.pk", perms: ["procurement:read", "procurement:create", "procurement:update", "procurement:approve", "vendors:read", "vendors:create", "vendors:update", "inventory:read", "procurement:bills", "vendor:liabilities"] },
+    { email: "store@respak.pk", perms: ["inventory:read", "inventory:create", "inventory:update", "inventory:access", "procurement:read"] },
+    { email: "finance@respak.pk", perms: ["finance:read", "finance:create", "finance:update", "finance:approve", "finance:payments", "customer:ledger", "vendor:liabilities", "procurement:read", "clients:read", "sites:read"] },
+    { email: "accountant@respak.pk", perms: ["finance:read", "finance:create", "finance:update", "customer:ledger"] },
+    { email: "hr@respak.pk", perms: ["hr:read", "hr:create", "hr:update", "hr:approve", "hr:leave", "hr:payroll", "hr:attendance", "settings:read"] },
+    { email: "pm@respak.pk", perms: ["sites:read", "sites:create", "sites:update", "sites:approve", "clients:read", "procurement:read", "procurement:create", "procurement:approve", "procurement:bills", "vehicles:read", "vehicles:create", "vendors:read", "vendor:liabilities", "inventory:read", "inventory:access", "projects:read", "projects:create", "projects:update", "boq:read", "boq:create", "boq:update", "boq:approve", "boq:analysis", "progress:read", "progress:create", "progress:update", "progress:approve", "budget:read", "budget:create", "cost:read", "cost:create", "cost:expenses", "documents:read", "documents:create", "documents:update", "iso:read", "iso:create", "iso:update", "correspondence:read", "correspondence:create"] },
+    { email: "site@respak.pk", perms: ["sites:read", "sites:create", "sites:update", "vehicles:read", "inventory:read", "vendors:read", "projects:read", "boq:read", "progress:read", "progress:create", "progress:update", "documents:read", "documents:create", "iso:read", "iso:create"] },
+    { email: "qa@respak.pk", perms: ["documents:read", "documents:create", "documents:update", "documents:approve", "iso:read", "iso:create", "iso:update", "iso:approve", "projects:read"] },
+    { email: "hse@respak.pk", perms: ["iso:read", "iso:create", "iso:update", "iso:approve", "documents:read", "documents:create", "projects:read", "hr:read"] },
+  ];
+
+  let grantCount = 0;
+  for (const g of demoGrants) {
+    const user = await prisma.user.findUnique({ where: { email: g.email } });
+    if (!user) continue;
+    const keys = g.permsFull ? PERMISSION_CATALOG.map((p) => p.key) : g.perms;
+    const data = keys
+      .map((key) => permissionByKey.get(key))
+      .filter((pid): pid is number => !!pid)
+      .map((permissionId) => ({ userId: user.id, projectId: null as number | null, permissionId }));
+    if (data.length) {
+      await prisma.userProjectPermission.createMany({ data, skipDuplicates: true });
+      grantCount += data.length;
+    }
+  }
+  console.log(`  • User permission grants (company-wide): ${grantCount}`);
 
   // -----------------------------------------------------------------
   // Auto Reference Numbering configs

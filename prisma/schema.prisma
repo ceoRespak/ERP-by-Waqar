@@ -78,6 +78,8 @@ model User {
   circularReads           CircularRead[]
   devices                 DeviceRegistration[] @relation("DeviceOwner")
   devicesReviewed         DeviceRegistration[] @relation("DeviceReviewedBy")
+  projectPermissionGrants UserProjectPermission[] @relation("UserProjectPermissionUser")
+  projectPermissionsGranted UserProjectPermission[] @relation("UserProjectPermissionGrantedBy")
   faceEnrollments         FaceEnrollment[]     @relation("FaceEnrollmentUser")
   faceEnrollmentsReviewed FaceEnrollment[]     @relation("FaceEnrollmentReviewedBy")
   dailyWagesApproved      DailyWage[]          @relation("DailyWageApprovedBy")
@@ -99,14 +101,37 @@ model Role {
 }
 
 model Permission {
-  id          Int              @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   module      String // e.g. "procurement"
   action      String // e.g. "read" | "create" | "approve"
-  key         String           @unique // e.g. "procurement:read"
+  key         String   @unique // e.g. "procurement:read"
+  category    String   @default("OPERATIONAL") // OPERATIONAL | APPROVAL | SECTION
+  section     String? // section key: vendor_liabilities | customer_ledger | inventory | hr_leave | payroll | ...
   description String?
+  isActive    Boolean  @default(true)
   roles       RolePermission[]
+  userProjectGrants UserProjectPermission[]
 
   @@index([module])
+  @@index([category])
+}
+
+model UserProjectPermission {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  projectId    Int? // null = company-wide (global) grant
+  permissionId Int
+  grantedById  Int?
+  grantedAt    DateTime  @default(now())
+
+  user       User       @relation("UserProjectPermissionUser", fields: [userId], references: [id], onDelete: Cascade)
+  project    Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedBy  User?      @relation("UserProjectPermissionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, projectId, permissionId])
+  @@index([userId, projectId])
+  @@index([permissionId])
 }
 
 model UserRole {
@@ -1358,6 +1383,7 @@ model Project {
   riskAssessments      RiskAssessment[]
   environmentalAspects EnvironmentalAspect[]
   safetyIncidents      SafetyIncident[]
+  userPermissionGrants UserProjectPermission[]
 
   @@index([status])
   @@index([category])

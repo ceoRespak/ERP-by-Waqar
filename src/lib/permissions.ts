@@ -1,12 +1,17 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { userHasPermission } from "@/lib/access";
 
 export const SUPER_ADMIN_ROLE = "SUPER_ADMIN";
 export const ADMIN_ROLE = "ADMIN";
 
-/** Roles that bypass permission checks */
-const BYPASS_ROLES = [SUPER_ADMIN_ROLE, ADMIN_ROLE];
+/**
+ * Roles that bypass permission checks.
+ * Per the dynamic permission model ONLY Super Admin bypasses all checks;
+ * every other user is governed by per-project grants.
+ */
+const BYPASS_ROLES = [SUPER_ADMIN_ROLE];
 
 /** Project-level access roles, ordered by strength. */
 const PROJECT_ROLE_RANK: Record<string, number> = {
@@ -18,13 +23,10 @@ const PROJECT_ROLE_RANK: Record<string, number> = {
 
 /**
  * Multi-project access guard. Verifies the user is assigned to the project
- * at (or above) the required role. SUPER_ADMIN/ADMIN bypass.
+ * at (or above) the required role. SUPER_ADMIN bypasses.
  *
- * Usage (server component / page):
- *   const user = await requirePermission(PERMISSIONS.BOQ_READ);
- *   await requireProjectAccess(user, projectId, "EDITOR");
- *
- * Returns the effective project role.
+ * NOTE: kept as a compatibility layer — access decisions are migrating to
+ * project-aware permissions (src/lib/access.ts).
  */
 export async function requireProjectAccess(
   user: AuthUser,
@@ -53,19 +55,16 @@ export type AuthUser = {
  * Server-side guard. Returns the session user when permitted,
  * otherwise redirects to login or the dashboard (forbidden).
  *
- * Usage:
- *   const user = await requirePermission(PERMISSIONS.PROCUREMENT_READ);
+ * Delegates to the dynamic, project-aware permission engine
+ * (Super Admin bypass + UserProjectPermission grants + legacy JWT fallback).
  */
-export async function requirePermission(permissionKey: string): Promise<AuthUser> {
+export async function requirePermission(permissionKey: string, projectId?: number | null): Promise<AuthUser> {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   const user = session.user as AuthUser;
-  const hasBypass = user.roles.some((r) => BYPASS_ROLES.includes(r));
-  if (hasBypass) return user;
-
-  if (!user.permissions.includes(permissionKey)) redirect("/dashboard");
-  return user;
+  if (await userHasPermission(user, permissionKey, projectId)) return user;
+  redirect("/dashboard");
 }
 
 /** Just require an authenticated session (any role). */
@@ -94,11 +93,9 @@ export async function getApiUser() {
 }
 
 /** API-side permission guard. Returns user or null when not permitted. */
-export async function apiRequirePermission(permissionKey: string): Promise<AuthUser | null> {
+export async function apiRequirePermission(permissionKey: string, projectId?: number | null): Promise<AuthUser | null> {
   const user = await getApiUser();
   if (!user) return null;
-  const hasBypass = user.roles.some((r) => BYPASS_ROLES.includes(r));
-  if (hasBypass) return user;
-  if (!user.permissions.includes(permissionKey)) return null;
-  return user;
+  if (await userHasPermission(user, permissionKey, projectId)) return user;
+  return null;
 }
