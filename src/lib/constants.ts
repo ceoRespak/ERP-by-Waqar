@@ -374,3 +374,61 @@ export const INCIDENT_STATUSES = ["OPEN", "UNDER_INVESTIGATION", "COMPLETED", "C
 // Correspondence domain values
 export const CORRESPONDENCE_TYPES = ["LETTER_IN", "LETTER_OUT", "INTERNAL_MEMO"] as const;
 export const CORRESPONDENCE_STATUSES = ["DRAFT", "SENT", "RECEIVED", "FILED"] as const;
+
+// =====================================================================
+// HR (advanced — ported from respakHRM) domain values
+// =====================================================================
+export const HR_ROLES = ["admin", "hr_manager", "project_manager", "employee"] as const;
+export const EMPLOYEE_TYPES = ["permanent", "contract", "daily_wages", "probation"] as const;
+export const EMPLOYMENT_STATUSES = ["ACTIVE", "INACTIVE", "ON_LEAVE", "TERMINATED", "RESIGNED"] as const;
+export const GENDERS = ["male", "female", "other"] as const;
+export const MARITAL_STATUSES = ["single", "married", "divorced", "widowed"] as const;
+export const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const;
+
+export const ATTENDANCE_STATUSES = ["PRESENT", "ABSENT", "LATE", "HALF_DAY", "LEAVE", "HOLIDAY"] as const;
+export const ATTENDANCE_METHODS = ["biometric", "manual", "gps", "cnic", "mobile", "face_detection"] as const;
+export const ATTENDANCE_APPROVAL_STATUSES = ["pending", "approved_by_pm", "approved_by_hr", "rejected"] as const;
+
+export const LEAVE_STATUSES = ["PENDING", "APPROVED_BY_PM", "APPROVED_BY_HR", "REJECTED", "CANCELLED"] as const;
+export const LEAVE_APPROVAL_STEPS = ["pm", "hr"] as const;
+/** Default leave types seeded per employee (code → name/total/isPaid). */
+export const DEFAULT_LEAVE_TYPES: { code: string; name: string; total: number; isPaid: boolean }[] = [
+  { code: "annual", name: "Annual Leave", total: 24, isPaid: true },
+  { code: "sick", name: "Sick Leave", total: 12, isPaid: true },
+  { code: "casual", name: "Casual Leave", total: 10, isPaid: true },
+  { code: "special", name: "Special Leave", total: 5, isPaid: true },
+  { code: "emergency", name: "Emergency Leave", total: 5, isPaid: true },
+  { code: "unpaid", name: "Unpaid Leave", total: 0, isPaid: false },
+];
+
+export const HR_PROJECT_TYPES = ["head_office", "field_office", "site"] as const;
+export const HR_PROJECT_STATUSES = ["planned", "active", "on_hold", "completed", "cancelled"] as const;
+export const SHIFT_TYPES = ["morning", "evening", "night"] as const;
+export const SHIFT_PRESETS: Record<string, { start: string; end: string }> = {
+  morning: { start: "09:00", end: "18:00" },
+  evening: { start: "14:00", end: "22:00" },
+  night: { start: "22:00", end: "06:00" },
+};
+
+export const DAILY_WAGE_STATUSES = ["present", "absent"] as const;
+export const DAILY_WAGE_APPROVAL_STATUSES = ["pending", "approved", "rejected"] as const;
+
+export const NOTIFICATION_TYPES = [
+  "attendance_marked",
+  "attendance_approved",
+  "attendance_rejected",
+  "leave_applied",
+  "leave_approved",
+  "leave_rejected",
+  "leave_cancelled",
+  "new_employee",
+  "employee_updated",
+  "project_assigned",
+  "daily_wage_marked",
+  "circular",
+  "system",
+] as const;
+export const NOTIFICATION_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
+export const CIRCULAR_PRIORITIES = ["normal", "important", "urgent"] as const;
+export const DEVICE_STATUSES = ["pending", "approved", "rejected"] as const;
+export const FACE_ENROLLMENT_STATUSES = ["pending", "approved", "rejected"] as const;

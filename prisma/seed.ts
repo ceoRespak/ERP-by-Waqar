@@ -1,4 +1,4 @@
-import { PrismaClient, LeaveType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -171,6 +171,11 @@ async function main() {
         "projects:read",
         "hr:read",
       ],
+    },
+    {
+      name: "EMPLOYEE",
+      description: "Employee self-service (attendance, leaves, profile)",
+      perms: ["hr:read"],
     },
   ];
 
@@ -503,6 +508,122 @@ async function main() {
     });
   }
   console.log(`  • Employees: ${employees.length}`);
+
+  // -----------------------------------------------------------------
+  // HR: default leave types + balances (respakHRM integration)
+  // -----------------------------------------------------------------
+  const defaultLeaveTypes = [
+    { code: "annual", name: "Annual Leave", defaultTotal: 24, isPaid: true, sortOrder: 1 },
+    { code: "sick", name: "Sick Leave", defaultTotal: 12, isPaid: true, sortOrder: 2 },
+    { code: "casual", name: "Casual Leave", defaultTotal: 10, isPaid: true, sortOrder: 3 },
+    { code: "special", name: "Special Leave", defaultTotal: 5, isPaid: true, sortOrder: 4 },
+    { code: "emergency", name: "Emergency Leave", defaultTotal: 5, isPaid: true, sortOrder: 5 },
+    { code: "unpaid", name: "Unpaid Leave", defaultTotal: 0, isPaid: false, sortOrder: 6 },
+  ];
+  const leaveTypeIds: number[] = [];
+  const leaveTypeTotalById = new Map<number, number>();
+  for (const lt of defaultLeaveTypes) {
+    const rec = await prisma.leaveTypeConfig.upsert({
+      where: { code: lt.code },
+      update: {},
+      create: {
+        code: lt.code,
+        name: lt.name,
+        defaultTotal: lt.defaultTotal,
+        isPaid: lt.isPaid,
+        color: lt.code === "unpaid" ? "secondary" : "info",
+        sortOrder: lt.sortOrder,
+        isActive: true,
+      },
+    });
+    leaveTypeIds.push(rec.id);
+    leaveTypeTotalById.set(rec.id, lt.defaultTotal);
+  }
+  // Back-fill a balance row for every employee for every active leave type
+  const allEmps = await prisma.employee.findMany({ select: { id: true } });
+  for (const e of allEmps) {
+    for (const ltId of leaveTypeIds) {
+      await prisma.leaveBalance.upsert({
+        where: { employeeId_leaveTypeConfigId: { employeeId: e.id, leaveTypeConfigId: ltId } },
+        update: {},
+        create: { employeeId: e.id, leaveTypeConfigId: ltId, total: leaveTypeTotalById.get(ltId) ?? 0, used: 0 },
+      });
+    }
+  }
+  console.log(`  • Leave types: ${defaultLeaveTypes.length} (+ balances for ${allEmps.length} employees)`);
+
+  // -----------------------------------------------------------------
+  // HR: demo projects/sites (respakHRM integration)
+  // -----------------------------------------------------------------
+  const hrProjects = [
+    {
+      code: "PRJ0001",
+      name: "Head Office",
+      projectType: "head_office" as const,
+      status: "active" as const,
+      startDate: new Date("2024-01-01"),
+      locationAddress: "Main Boulevard, Gulberg III",
+      locationCity: "Lahore",
+      locationProvince: "Punjab",
+      locationLat: 31.5204,
+      locationLng: 74.3587,
+      shiftType: "morning" as const,
+      shiftStart: "09:00",
+      shiftEnd: "18:00",
+      allowedRadius: 150,
+      isApprovedSite: true,
+    },
+    {
+      code: "PRJ0002",
+      name: "Tower Residency Site",
+      projectType: "site" as const,
+      status: "active" as const,
+      startDate: new Date("2026-01-15"),
+      locationAddress: "Phase 2, DHA",
+      locationCity: "Lahore",
+      locationProvince: "Punjab",
+      locationLat: 31.4709,
+      locationLng: 74.4122,
+      shiftType: "morning" as const,
+      shiftStart: "08:00",
+      shiftEnd: "17:00",
+      allowedRadius: 200,
+      isApprovedSite: true,
+    },
+  ];
+  const hrProjectIds: number[] = [];
+  for (const p of hrProjects) {
+    const rec = await prisma.hrProject.upsert({
+      where: { code: p.code },
+      update: {},
+      create: p,
+    });
+    hrProjectIds.push(rec.id);
+  }
+  // Assign first two employees to the site project as a demo
+  const siteProjectId = hrProjectIds[1];
+  if (siteProjectId) {
+    const emp1 = await prisma.employee.findUnique({ where: { empCode: "EMP-001" } });
+    const emp2 = await prisma.employee.findUnique({ where: { empCode: "EMP-002" } });
+    if (emp1) {
+      await prisma.employeeAssignment.upsert({
+        where: { employeeId_projectId: { employeeId: emp1.id, projectId: siteProjectId } },
+        update: { isActive: true, endDate: null },
+        create: { employeeId: emp1.id, projectId: siteProjectId, role: "Project Manager", isActive: true },
+      });
+      await prisma.employee.update({ where: { id: emp1.id }, data: { currentProjectId: siteProjectId } });
+      await prisma.hrProject.update({ where: { id: siteProjectId }, data: { projectManagerId: emp1.id } });
+    }
+    if (emp2) {
+      await prisma.employeeAssignment.upsert({
+        where: { employeeId_projectId: { employeeId: emp2.id, projectId: siteProjectId } },
+        update: { isActive: true, endDate: null },
+        create: { employeeId: emp2.id, projectId: siteProjectId, role: "Site Engineer", isActive: true },
+      });
+      await prisma.employee.update({ where: { id: emp2.id }, data: { currentProjectId: siteProjectId } });
+    }
+  }
+  console.log(`  • HR projects: ${hrProjects.length}`);
 
   // -----------------------------------------------------------------
   // Vehicles
