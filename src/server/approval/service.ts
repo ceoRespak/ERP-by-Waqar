@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/server/audit";
-import { userHasPermission } from "@/lib/access";
+import { userHasPermission, SUPER_ADMIN_ROLE } from "@/lib/access";
 import {
   APPROVAL_ENTITY_TYPES,
   ENTITY_STATUS_MAP,
@@ -307,19 +307,43 @@ export async function approvableStepsForUser(userId: number) {
 }
 
 /**
- * All PENDING approval requests where the current step can be acted on
- * by the given user (matches role or direct assignment).
+ * Exact (chainId, stepOrder) pairs the user can act on, deduplicated.
+ * Matching a request by its exact (chainId, currentStep) pair avoids
+ * false positives from independent chainId/step filters.
+ */
+function approvablePairsForUser(steps: Awaited<ReturnType<typeof approvableStepsForUser>>) {
+  const pairs = new Map<string, { chainId: number; currentStep: number }>();
+  for (const s of steps) {
+    pairs.set(`${s.chainId}:${s.stepOrder}`, { chainId: s.chainId, currentStep: s.stepOrder });
+  }
+  return [...pairs.values()];
+}
+
+/**
+ * Where clause for a user's actionable pending requests.
+ * Super Admin bypasses every step and sees the full pending inbox,
+ * matching the dynamic permission system's "Super Admin bypasses all" rule.
+ */
+async function pendingApprovalWhereForUser(userId: number) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { roles: { include: { role: true } } },
+  });
+  if (!user) return { OR: [{ chainId: -1 }] };
+  if (user.roles.some((r) => r.role.name === SUPER_ADMIN_ROLE)) return {};
+  const pairs = approvablePairsForUser(await approvableStepsForUser(userId));
+  return { OR: pairs.length ? pairs : [{ chainId: -1 }] };
+}
+
+/**
+ * All PENDING approval requests the user can act on right now.
+ * Super Admin sees everything; others match role/direct assignment.
  */
 export async function pendingApprovalsForUser(userId: number, limit = 100) {
-  const steps = await approvableStepsForUser(userId);
-  const chainIds = [...new Set(steps.map((s) => s.chainId))];
-  const stepOrders = [...new Set(steps.map((s) => s.stepOrder))];
-
   const requests = await prisma.approvalRequest.findMany({
     where: {
       status: "PENDING",
-      chainId: { in: chainIds.length ? chainIds : [-1] },
-      currentStep: { in: stepOrders.length ? stepOrders : [-1] },
+      ...(await pendingApprovalWhereForUser(userId)),
     },
     include: {
       chain: true,
@@ -329,6 +353,20 @@ export async function pendingApprovalsForUser(userId: number, limit = 100) {
     take: limit,
   });
   return requests;
+}
+
+/**
+ * Count of PENDING requests the user can act on right now.
+ * Kept in sync with pendingApprovalsForUser so dashboard badges
+ * always match the /approvals list.
+ */
+export async function countPendingApprovalsForUser(userId: number) {
+  return prisma.approvalRequest.count({
+    where: {
+      status: "PENDING",
+      ...(await pendingApprovalWhereForUser(userId)),
+    },
+  });
 }
 
 /** Full approval history for a transaction. */
