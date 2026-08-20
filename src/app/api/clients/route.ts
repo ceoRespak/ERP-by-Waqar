@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
   const user = await apiRequirePermission(PERMISSIONS.CLIENTS_CREATE);
   if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
-  if (!body?.code || !body?.name) return fail("code and name are required");
+  if (!body?.name) return fail("name is required");
   try {
     const record = await createClient({
-      code: body.code,
+      code: body.code || undefined,
       name: body.name,
       type: body.type ?? "CORPORATE",
       contactPerson: body.contactPerson ?? null,

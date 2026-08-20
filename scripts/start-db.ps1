@@ -1,5 +1,5 @@
 # Starts the portable MariaDB used for local development.
-# No admin / service required — runs mariadbd directly on port 3306.
+# No admin / service required - runs mariadbd directly on port 3306.
 # Data lives in C:\Users\<you>\.local\mariadb\data (persistent across restarts).
 param(
   [int]$Port = 3306,
@@ -25,7 +25,7 @@ if (!(Test-Path "$bin\mariadbd.exe")) {
 
 # Check if already listening on the port
 if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) {
-  Write-Host "Port $Port is already in use — MariaDB likely running." -ForegroundColor Yellow
+  Write-Host "Port $Port is already in use - MariaDB likely running." -ForegroundColor Yellow
   exit 0
 }
 

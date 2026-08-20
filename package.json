@@ -4,7 +4,8 @@
   "private": true,
   "description": "RESPAK Construction ERP - Procurement, Inventory, Finance, HR & Payroll, Vehicle Tracking, Vendor & Client Management, Site Management",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { LogOut, ChevronDown } from "lucide-react";
 import { ProjectSwitcher } from "@/components/projects/project-switcher";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 type Props = {
   user: { name?: string | null; email?: string | null; roles: string[] };
@@ -17,6 +18,7 @@ export function Topbar({ user }: Props) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/95 px-6 backdrop-blur">
       <div className="flex items-center gap-3">
+        <MobileNav />
         <ProjectSwitcher />
       </div>
       <div className="relative">

@@ -356,6 +356,22 @@ export const BUDGET_STATUSES = ["DRAFT", "APPROVED", "REVISED"] as const;
 export const DOCUMENT_MODULES = ["QUALITY", "ENVIRONMENT", "SAFETY", "HR", "PROCUREMENT", "GENERAL"] as const;
 export const DOCUMENT_TYPES = ["POLICY", "PROCEDURE", "SOP", "FORM", "RECORD", "MANUAL", "OTHER"] as const;
 export const ISO_STANDARDS = ["ISO9001", "ISO14001", "ISO45001", "NONE"] as const;
+
+/** Project attachment name tags (project page attachment panel). */
+export const PROJECT_ATTACHMENT_TAGS = [
+  { value: "WORK_ORDER", label: "Work Order" },
+  { value: "AGREEMENT", label: "Agreement / Contract" },
+  { value: "CDR", label: "CDR" },
+  { value: "PERFORMANCE_GUARANTEE", label: "Performance Guarantee" },
+  { value: "MOBILIZATION_GUARANTEE", label: "Mobilization Guarantee" },
+  { value: "LETTER_IN", label: "Letter In" },
+  { value: "LETTER_OUT", label: "Letter Out" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+export const PROJECT_ATTACHMENT_TAG_LABELS: Record<string, string> = Object.fromEntries(
+  PROJECT_ATTACHMENT_TAGS.map((t) => [t.value, t.label])
+);
 export const DOC_STATUSES = ["DRAFT", "UNDER_REVIEW", "APPROVED", "OBSOLETE"] as const;
 
 // ISO compliance domain values

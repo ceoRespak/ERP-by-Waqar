@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission, requireProjectAccess, type AuthUser } from "@/lib/permissions";
+import { userHasPermission } from "@/lib/access";
 import { PERMISSIONS } from "@/lib/constants";
 import { getProjectDetail } from "@/server/projects/service";
+import { listProjectAttachments } from "@/server/projects/attachments";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProjectCategoryBadge, ProjectStatusBadge } from "@/components/projects/project-meta";
 import { ProjectTeam } from "@/components/projects/project-team";
+import { ProjectAttachments } from "@/components/projects/project-attachments";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { formatDate, formatMoney } from "@/lib/utils";
 import {
@@ -30,6 +33,12 @@ export default async function ProjectDashboardPage({ params }: Props) {
   const detail = await getProjectDetail(Number(id));
   if (!detail) notFound();
   const { project, kpis } = detail;
+
+  const [attachments, canManageProject, canManagePermanent] = await Promise.all([
+    listProjectAttachments(project.id),
+    userHasPermission(user, PERMISSIONS.DOCUMENTS_CREATE, project.id),
+    userHasPermission(user, PERMISSIONS.DOCUMENTS_CREATE, null),
+  ]);
 
   const kpiCards = [
     {
@@ -110,6 +119,20 @@ export default async function ProjectDashboardPage({ params }: Props) {
             )}
           </p>
           {project.description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{project.description}</p>}
+          {(project.assetAccount || project.incomeAccount) && (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {project.assetAccount && (
+                <span className="inline-flex items-center gap-1">
+                  <Landmark className="h-3.5 w-3.5" /> Asset: {project.assetAccount.name}
+                </span>
+              )}
+              {project.incomeAccount && (
+                <span className="inline-flex items-center gap-1">
+                  <TrendingUp className="h-3.5 w-3.5" /> Income: {project.incomeAccount.name}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <Link href="/projects" className="text-sm text-primary hover:underline">← All projects</Link>
       </div>
@@ -180,6 +203,14 @@ export default async function ProjectDashboardPage({ params }: Props) {
           />
         </CardContent>
       </Card>
+
+      {/* Attachments */}
+      <ProjectAttachments
+        projectId={project.id}
+        canManage={canManageProject}
+        canManagePermanent={canManagePermanent}
+        attachments={attachments}
+      />
     </div>
   );
 }

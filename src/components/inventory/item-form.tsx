@@ -9,7 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
 import { Loader2 } from "lucide-react";
 
-export function ItemForm({ categories }: { categories: { id: number; name: string }[] }) {
+export function ItemForm({
+  categories,
+  warehouses,
+}: {
+  categories: { id: number; name: string }[];
+  warehouses: { id: number; name: string }[];
+}) {
   const { submit, loading, error } = useSubmit("/api/inventory/items", "/inventory/items");
   const [form, setForm] = useState({
     code: "",
@@ -18,6 +24,7 @@ export function ItemForm({ categories }: { categories: { id: number; name: strin
     unit: "EA",
     reorderLevel: "0",
     openingStock: "0",
+    openingWarehouseId: "",
     description: "",
   });
 
@@ -34,6 +41,7 @@ export function ItemForm({ categories }: { categories: { id: number; name: strin
       unit: form.unit,
       reorderLevel: Number(form.reorderLevel),
       openingStock: Number(form.openingStock),
+      openingWarehouseId: form.openingWarehouseId ? Number(form.openingWarehouseId) : null,
       description: form.description || null,
     });
   }
@@ -73,6 +81,15 @@ export function ItemForm({ categories }: { categories: { id: number; name: strin
           <div className="space-y-2">
             <Label>Opening Stock</Label>
             <Input type="number" min="0" step="any" value={form.openingStock} onChange={(e) => set("openingStock", e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Opening Stock Warehouse</Label>
+            <Select value={form.openingWarehouseId} onChange={(e) => set("openingWarehouseId", e.target.value)}>
+              <option value="">— First warehouse —</option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </Select>
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>Description</Label>

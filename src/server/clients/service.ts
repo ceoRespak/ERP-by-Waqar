@@ -18,8 +18,25 @@ export async function listClients(opts: { limit?: number; status?: string } = {}
   });
 }
 
+/**
+ * Next auto client code: CLI-001, CLI-002, ... derived from the highest
+ * existing CLI-### code so seeded/historical codes are never reused.
+ */
+export async function nextClientCode(): Promise<string> {
+  const rows = await prisma.client.findMany({
+    where: { code: { startsWith: "CLI-" } },
+    select: { code: true },
+  });
+  let max = 0;
+  for (const r of rows) {
+    const m = /^CLI-(\d+)$/.exec(r.code);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `CLI-${String(max + 1).padStart(3, "0")}`;
+}
+
 export async function createClient(data: {
-  code: string;
+  code?: string;
   name: string;
   type?: ClientType;
   contactPerson?: string | null;
@@ -29,9 +46,10 @@ export async function createClient(data: {
   city?: string | null;
   ntn?: string | null;
 }) {
+  const code = data.code?.trim() || (await nextClientCode());
   const record = await prisma.client.create({
     data: {
-      code: data.code,
+      code,
       name: data.name,
       type: data.type ?? "CORPORATE",
       contactPerson: data.contactPerson ?? null,

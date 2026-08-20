@@ -83,6 +83,7 @@ model User {
   faceEnrollments         FaceEnrollment[]     @relation("FaceEnrollmentUser")
   faceEnrollmentsReviewed FaceEnrollment[]     @relation("FaceEnrollmentReviewedBy")
   dailyWagesApproved      DailyWage[]          @relation("DailyWageApprovedBy")
+  projectAttachments      ProjectAttachment[]
 
   @@index([status])
 }
@@ -560,6 +561,9 @@ model Account {
   journalLines JournalEntryLine[]
   payments     Payment[]
   budgetLines  BudgetLine[]
+
+  projectAssetAccounts  Project[] @relation("ProjectAssetAccount")
+  projectIncomeAccounts Project[] @relation("ProjectIncomeAccount")
 }
 
 model JournalEntry {
@@ -1342,12 +1346,17 @@ model Project {
   budget            Decimal         @default(0) @db.Decimal(16, 2)
   status            ProjectStatus   @default(PLANNING)
   managerEmployeeId Int?
+  assetAccountId    Int?
+  incomeAccountId   Int?
   description       String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   client  Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   manager Employee? @relation("ProjectManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
+
+  assetAccount  Account? @relation("ProjectAssetAccount", fields: [assetAccountId], references: [id], onDelete: SetNull)
+  incomeAccount Account? @relation("ProjectIncomeAccount", fields: [incomeAccountId], references: [id], onDelete: SetNull)
 
   requisitions   PurchaseRequisition[]
   purchaseOrders PurchaseOrder[]
@@ -1384,9 +1393,39 @@ model Project {
   environmentalAspects EnvironmentalAspect[]
   safetyIncidents      SafetyIncident[]
   userPermissionGrants UserProjectPermission[]
+  attachments          ProjectAttachment[]
 
   @@index([status])
   @@index([category])
+}
+
+// =====================================================================
+// PROJECT ATTACHMENTS — files tagged by type (Work Order, Agreement, CDR,
+// Guarantees, Letters, etc.). projectId = null + isPermanent means the
+// attachment is shared across ALL projects (e.g. Work Order, Agreement,
+// CDR, Performance Guarantee, Mobilization Guarantee).
+// =====================================================================
+model ProjectAttachment {
+  id           Int      @id @default(autoincrement())
+  projectId    Int? // null = permanent/global (shared across all projects)
+  nameTag      String // WORK_ORDER | AGREEMENT | CDR | PERFORMANCE_GUARANTEE | MOBILIZATION_GUARANTEE | LETTER_IN | LETTER_OUT | OTHER
+  title        String
+  fileName     String
+  fileUrl      String
+  fileSize     Int?
+  fileType     String?
+  description  String?
+  isPermanent  Boolean  @default(false)
+  uploadedById Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([nameTag])
+  @@index([isPermanent])
 }
 
 enum ProjectCategory {

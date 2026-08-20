@@ -38,6 +38,7 @@ export async function createItem(data: {
   unit: string;
   reorderLevel?: number;
   openingStock?: number;
+  openingWarehouseId?: number | null;
   description?: string | null;
 }) {
   const record = await prisma.item.create({
@@ -52,20 +53,28 @@ export async function createItem(data: {
     },
   });
 
-  if (data.openingStock) {
-    await prisma.stockTransaction.create({
-      data: {
-        transactionNo: `OPEN-${record.id}`,
-        itemId: record.id,
-        warehouseId: 1,
-        type: "ADJUSTMENT",
-        quantity: data.openingStock,
-        notes: "Opening stock",
-      },
-    });
-    await prisma.stockLevel.create({
-      data: { itemId: record.id, warehouseId: 1, quantity: data.openingStock },
-    });
+  if (data.openingStock && data.openingStock > 0) {
+    // Resolve the opening-stock warehouse — never hardcode id 1 (item
+    // creation would fail if that warehouse doesn't exist). Default to the
+    // first warehouse when the form didn't pick one.
+    const warehouseId =
+      data.openingWarehouseId ??
+      (await prisma.warehouse.findFirst({ select: { id: true }, orderBy: { id: "asc" } }))?.id;
+    if (warehouseId != null) {
+      await prisma.stockTransaction.create({
+        data: {
+          transactionNo: `OPEN-${record.id}`,
+          itemId: record.id,
+          warehouseId,
+          type: "ADJUSTMENT",
+          quantity: data.openingStock,
+          notes: "Opening stock",
+        },
+      });
+      await prisma.stockLevel.create({
+        data: { itemId: record.id, warehouseId, quantity: data.openingStock },
+      });
+    }
   }
 
   await auditLog({
@@ -123,8 +132,27 @@ export async function createStockAdjustment(data: {
   const qty = data.quantity;
   const type = qty >= 0 ? "ADJUSTMENT" : "ISSUE";
 
+  // Generate the ref number OUTSIDE the outer transaction (same pattern as the
+  // materials/cost services). generateRefNo runs its own transaction on the
+  // numbering counter; nesting it inside this $transaction makes it wait for a
+  // pool connection and time out with "Unable to start a transaction".
+  const transactionNo = await nextTxnNo(REF_DOC_TYPES.STOCK_ADJUSTMENT, "ADJ-");
+
   return prisma.$transaction(async (tx) => {
-    const transactionNo = await nextTxnNo(REF_DOC_TYPES.STOCK_ADJUSTMENT, "ADJ-");
+    const existing = await tx.stockLevel.findUnique({
+      where: { itemId_warehouseId: { itemId: data.itemId, warehouseId: data.warehouseId } },
+    });
+
+    // Never let an issue/adjustment drive stock below zero. Without this the
+    // transaction log (which records the full quantity) would diverge from the
+    // clamped stock level — same rule as createStockTransfer.
+    if (qty < 0) {
+      const onHand = existing ? existing.quantity.toNumber() : 0;
+      if (onHand + qty < 0) {
+        throw new Error(`Insufficient stock: ${onHand} on hand, cannot remove ${Math.abs(qty)}.`);
+      }
+    }
+
     const trx = await tx.stockTransaction.create({
       data: {
         transactionNo,
@@ -138,11 +166,8 @@ export async function createStockAdjustment(data: {
       },
     });
 
-    const existing = await tx.stockLevel.findUnique({
-      where: { itemId_warehouseId: { itemId: data.itemId, warehouseId: data.warehouseId } },
-    });
     if (existing) {
-      const newQty = Math.max(0, existing.quantity.toNumber() + qty);
+      const newQty = existing.quantity.toNumber() + qty;
       await tx.stockLevel.update({ where: { id: existing.id }, data: { quantity: newQty } });
     } else if (qty > 0) {
       await tx.stockLevel.create({
@@ -180,8 +205,10 @@ export async function createStockTransfer(data: {
     if (!i.itemId || i.quantity <= 0) throw new Error("Each line needs an item and a positive quantity.");
   }
 
+  // Generate the transfer number OUTSIDE the transaction (see createStockAdjustment).
+  const transferNo = await nextTxnNo(REF_DOC_TYPES.STOCK_TRANSFER, "TRF-");
+
   return prisma.$transaction(async (tx) => {
-    const transferNo = await nextTxnNo(REF_DOC_TYPES.STOCK_TRANSFER, "TRF-");
     let line = 0;
     for (const i of data.items) {
       line += 1;

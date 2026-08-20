@@ -59,12 +59,13 @@ export default async function ItemsPage({
   await requirePermission(PERMISSIONS.INVENTORY_READ);
   const params = await searchParams;
   const page = parsePage(params.page);
-  const [items, categories] = await Promise.all([
+  const [items, categories, warehouses] = await Promise.all([
     prisma.item.findMany({
       include: { category: true, stockLevels: { include: { warehouse: true } } },
       orderBy: { name: "asc" },
     }),
     prisma.itemCategory.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.warehouse.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -75,7 +76,7 @@ export default async function ItemsPage({
           <DataTable columns={columns} rows={items as Item[]} rowKey={(r) => r.id} emptyMessage="No items yet." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/items" />
         </div>
         <div>
-          <ItemForm categories={categories} />
+          <ItemForm categories={categories} warehouses={warehouses} />
         </div>
       </div>
     </div>

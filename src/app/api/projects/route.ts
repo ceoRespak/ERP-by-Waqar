@@ -26,10 +26,10 @@ export async function POST(req: NextRequest) {
   const user = await apiRequirePermission(PERMISSIONS.PROJECTS_CREATE);
   if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
-  if (!body?.code || !body?.name) return fail("code and name are required");
+  if (!body?.name) return fail("name is required");
   try {
     const record = await createProject({
-      code: body.code,
+      code: body.code || undefined,
       name: body.name,
       category: body.category ?? "CONSTRUCTION",
       clientId: body.clientId ? Number(body.clientId) : null,
@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
       budget: body.budget ? Number(body.budget) : 0,
       status: body.status ?? "PLANNING",
       managerEmployeeId: body.managerEmployeeId ? Number(body.managerEmployeeId) : null,
+      assetAccountId: body.assetAccountId ? Number(body.assetAccountId) : null,
+      incomeAccountId: body.incomeAccountId ? Number(body.incomeAccountId) : null,
       description: body.description ?? null,
       projectUsers: body.projectUsers?.length
         ? body.projectUsers.map((u: { userId: string | number; role: string }) => ({

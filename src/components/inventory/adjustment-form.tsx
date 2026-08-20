@@ -18,10 +18,10 @@ export function AdjustmentForm({ items, warehouses }: { items: { id: number; cod
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!itemId || !quantity) return;
+    if (!itemId || !warehouseId || !quantity) return;
     await submit({
       itemId: Number(itemId),
-      warehouseId: Number(warehouseId || 1),
+      warehouseId: Number(warehouseId),
       quantity: Number(quantity),
       notes: notes || null,
     });
@@ -44,8 +44,9 @@ export function AdjustmentForm({ items, warehouses }: { items: { id: number; cod
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Warehouse</Label>
-            <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+            <Label>Warehouse *</Label>
+            <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
+              <option value="">— Select —</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}

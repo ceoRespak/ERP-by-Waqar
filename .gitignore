@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local database helper (machine-specific) — keep, but your local path differs
 scripts/*.local.*
+
+# uploaded files (project attachments etc.) — runtime artifacts, not committed
+/public/uploads/

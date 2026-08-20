@@ -18,11 +18,12 @@ export async function POST(req: NextRequest) {
   const user = await apiRequirePermission(PERMISSIONS.INVENTORY_CREATE);
   if (!user) return unauthorized();
   const body = await req.json().catch(() => null);
-  if (!body?.itemId || body?.quantity == null) return fail("itemId and quantity are required");
+  if (!body?.itemId || !body?.warehouseId || body?.quantity == null)
+    return fail("itemId, warehouseId and quantity are required");
   try {
     const record = await createStockAdjustment({
       itemId: Number(body.itemId),
-      warehouseId: Number(body.warehouseId ?? 1),
+      warehouseId: Number(body.warehouseId),
       quantity: Number(body.quantity),
       notes: body.notes ?? null,
       createdById: Number(user.id),

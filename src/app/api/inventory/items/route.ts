@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       unit: body.unit,
       reorderLevel: body.reorderLevel ? Number(body.reorderLevel) : 0,
       openingStock: body.openingStock ? Number(body.openingStock) : 0,
+      openingWarehouseId: body.openingWarehouseId ? Number(body.openingWarehouseId) : null,
       description: body.description ?? null,
     });
     return ok({ item: record });
