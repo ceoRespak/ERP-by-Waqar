@@ -80,6 +80,17 @@ export async function submitForApproval(params: {
   createdById?: number;
   createdByName?: string;
 }) {
+  // Idempotent submission: if this entity already has an active (pending or
+  // approved) request, reuse it instead of creating a duplicate on re-submit.
+  const existing = await prisma.approvalRequest.findFirst({
+    where: {
+      entityType: params.entityType,
+      entityId: params.entityId,
+      status: { in: ["PENDING", "APPROVED"] },
+    },
+  });
+  if (existing) return existing;
+
   const chain = await getApprovalChain(params.entityType, params.module);
   if (!chain) {
     // No chain configured -> auto-approve (single step, no approver)

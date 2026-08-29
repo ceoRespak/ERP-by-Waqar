@@ -102,6 +102,10 @@ export async function submitJournalEntry(params: { id: number; userId: number; u
     submittedById: params.userId,
     submittedByName: params.userName,
   });
+  await prisma.journalEntry.update({
+    where: { id: record.id },
+    data: { approvalRequestId: request.id },
+  });
   return { record, approvalRequest: request };
 }
 
@@ -219,6 +223,10 @@ export async function submitPayment(params: { id: number; userId: number; userNa
     module: MODULES.FINANCE,
     submittedById: params.userId,
     submittedByName: params.userName,
+  });
+  await prisma.payment.update({
+    where: { id: record.id },
+    data: { approvalRequestId: request.id },
   });
   return { record, approvalRequest: request };
 }

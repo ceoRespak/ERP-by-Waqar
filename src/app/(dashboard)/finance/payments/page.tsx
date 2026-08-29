@@ -51,7 +51,13 @@ const columns: Column<Row>[] = [
     header: "",
     className: "text-right",
     render: (r) =>
-      r.status === "DRAFT" || r.status === "PENDING" || r.status === "REJECTED" ? (
+      r.approvalRequestId ? (
+        r.status === "APPROVED" || r.status === "PAID" ? (
+          <Badge variant="success">Approved</Badge>
+        ) : (
+          <Badge variant="info">In Approval</Badge>
+        )
+      ) : r.status === "DRAFT" || r.status === "PENDING" || r.status === "REJECTED" ? (
         <SubmitToApprovalButton apiPath={`/api/finance/payments/${r.id}/submit`} label="Submit" />
       ) : null,
   },

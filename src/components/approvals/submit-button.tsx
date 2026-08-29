@@ -24,6 +24,9 @@ export function SubmitToApprovalButton({ apiPath, disabled, label = "Submit for 
       const res = await fetch(apiPath, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Request failed");
+      // Reset busy BEFORE refreshing: router.refresh() keeps client state,
+      // so leaving it true would leave the button stuck on "Submitting...".
+      setBusy(false);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");

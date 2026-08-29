@@ -56,7 +56,9 @@ const columns: Column<Row>[] = [
     header: "",
     className: "text-right",
     render: (r) =>
-      r.status === "DRAFT" || r.status === "REJECTED" ? (
+      r.approvalRequestId && r.status !== "POSTED" ? (
+        <Badge variant="info">In Approval</Badge>
+      ) : r.status === "DRAFT" || r.status === "REJECTED" ? (
         <SubmitToApprovalButton apiPath={`/api/finance/journal/${r.id}/submit`} label="Post for Approval" />
       ) : null,
   },
