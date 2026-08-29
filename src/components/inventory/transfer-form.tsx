@@ -70,9 +70,12 @@ export function TransferForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Stock Transfer</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="inv-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-white">
+          <ArrowLeftRight className="h-4 w-4" />
+          Stock Transfer
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -136,7 +139,7 @@ export function TransferForm({
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow hover:from-violet-600 hover:to-purple-700 hover:text-white">
             {loading ? <Loader2 className="animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
             {loading ? "Transferring..." : "Transfer Stock"}
           </Button>

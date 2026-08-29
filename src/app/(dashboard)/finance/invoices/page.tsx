@@ -8,6 +8,7 @@ import { Badge, statusVariant } from "@/components/ui/badge";
 import { SubmitToApprovalButton } from "@/components/approvals/submit-button";
 import { InvoiceForm } from "@/components/finance/invoice-form";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { ReceiptText } from "lucide-react";
 
 type Row = Awaited<ReturnType<typeof listClientInvoices>>[number];
 
@@ -43,8 +44,8 @@ export default async function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Client Invoices" description="Bill clients for projects & services." />
-      <DataTable columns={columns} rows={invoices} rowKey={(r) => r.id} emptyMessage="No invoices yet." />
+      <PageHeader title="Client Invoices" description="Bill clients for projects & services." hero icon={ReceiptText} />
+      <DataTable columns={columns} rows={invoices} rowKey={(r) => r.id} emptyMessage="No invoices yet." headerClassName="inv-table-head" zebra />
       <div className="mx-auto max-w-4xl">
         <InvoiceForm clients={clients} projects={projects} />
       </div>

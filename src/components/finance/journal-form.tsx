@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, ScrollText, ListChecks } from "lucide-react";
 
 type Line = { accountId: string; debit: string; credit: string; notes: string };
 
@@ -27,7 +27,7 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await submit({
+    const ok = await submit({
       date: date || null,
       description,
       lines: lines.map((l) => ({
@@ -37,13 +37,21 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
         notes: l.notes || undefined,
       })),
     });
+    if (ok) {
+      setDate("");
+      setDescription("");
+      setLines([{ accountId: "", debit: "0", credit: "0", notes: "" }]);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Journal Entry</CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="inv-card-header">
+          <CardTitle className="flex items-center gap-2 text-base text-white">
+            <ScrollText className="h-4 w-4" />
+            Journal Entry
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -57,10 +65,13 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Lines (must balance)</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, { accountId: "", debit: "0", credit: "0", notes: "" }])}>
+      <Card className="overflow-hidden">
+        <CardHeader className="inv-card-header flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base text-white">
+            <ListChecks className="h-4 w-4" />
+            Lines (must balance)
+          </CardTitle>
+          <Button type="button" variant="outline" size="sm" className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setLines((ls) => [...ls, { accountId: "", debit: "0", credit: "0", notes: "" }])}>
             <Plus className="h-4 w-4" /> Add Line
           </Button>
         </CardHeader>
@@ -105,7 +116,7 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={loading || !balanced}>
+        <Button type="submit" disabled={loading || !balanced} className="bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow hover:from-violet-600 hover:to-purple-700 hover:text-white">
           {loading && <Loader2 className="animate-spin" />}
           {loading ? "Saving..." : "Save Journal Entry"}
         </Button>

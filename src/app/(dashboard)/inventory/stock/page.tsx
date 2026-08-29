@@ -7,6 +7,7 @@ import { Badge, statusVariant } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney, formatNumber } from "@/lib/utils";
 import { parsePage } from "@/lib/pagination";
+import { Wallet, Layers, AlertTriangle, PackageX } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -67,11 +68,11 @@ export default async function StockPage({
     },
   ];
 
-  const cards = [
-    { label: "Total Stock Value", value: formatMoney(valuation.totalValue) },
-    { label: "Stock Lines", value: formatNumber(stock.length) },
-    { label: "Low Stock", value: formatNumber(lowStock.length), tone: lowStock.length > 0 ? "text-amber-600" : "" },
-    { label: "Out of Stock", value: formatNumber(outOfStock.length), tone: outOfStock.length > 0 ? "text-destructive" : "" },
+  const statCards = [
+    { label: "Total Stock Value", value: formatMoney(valuation.totalValue), icon: Wallet, accent: "from-emerald-500 to-teal-600", tone: "" },
+    { label: "Stock Lines", value: formatNumber(stock.length), icon: Layers, accent: "from-sky-500 to-blue-600", tone: "" },
+    { label: "Low Stock", value: formatNumber(lowStock.length), icon: AlertTriangle, accent: "from-amber-500 to-orange-600", tone: lowStock.length > 0 ? "text-amber-600" : "" },
+    { label: "Out of Stock", value: formatNumber(outOfStock.length), icon: PackageX, accent: "from-rose-500 to-red-600", tone: outOfStock.length > 0 ? "text-rose-600" : "" },
   ];
 
   return (
@@ -81,20 +82,27 @@ export default async function StockPage({
         description="On-hand quantities per item and warehouse. Stock updates on GRN receipts, material issues, adjustments and transfers."
         actionHref="/inventory/transactions"
         actionLabel="Adjust Stock"
+        hero
+        icon={Layers}
       />
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        {cards.map((c) => (
-          <Card key={c.label}>
-            <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">{c.label}</p>
-              <p className={`mt-1 text-2xl font-bold ${c.tone ?? ""}`}>{c.value}</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {statCards.map((c) => (
+          <Card key={c.label} className="overflow-hidden">
+            <CardContent className="flex items-center justify-between gap-3 p-5">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-muted-foreground">{c.label}</p>
+                <p className={`mt-1 truncate text-2xl font-bold ${c.tone ?? ""}`}>{c.value}</p>
+              </div>
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${c.accent} text-white shadow`}>
+                <c.icon className="h-5 w-5" />
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <DataTable columns={columns} rows={stock} rowKey={(r) => r.id} emptyMessage="No stock recorded yet — receive goods against a PO or add opening stock." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/stock" />
+      <DataTable columns={columns} rows={stock} rowKey={(r) => r.id} emptyMessage="No stock recorded yet — receive goods against a PO or add opening stock." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/stock" headerClassName="inv-table-head" zebra />
     </div>
   );
 }

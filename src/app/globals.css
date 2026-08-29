@@ -57,3 +57,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* ---- Colorful design system (inventory / finance / modules) ---- */
+  .inv-hero {
+    @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 p-6 text-white shadow-lg sm:p-8;
+  }
+  .inv-hero-blob {
+    @apply pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-2xl;
+  }
+  .inv-hero-blob-2 {
+    @apply pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl;
+  }
+  .inv-card-header {
+    @apply border-b border-sky-100 bg-gradient-to-r from-sky-500 to-indigo-600 text-white;
+  }
+  .inv-table-head {
+    @apply bg-gradient-to-r from-sky-600 to-indigo-700 text-white;
+  }
+}

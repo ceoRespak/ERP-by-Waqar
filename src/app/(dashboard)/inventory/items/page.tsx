@@ -8,6 +8,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { formatNumber } from "@/lib/utils";
 import { parsePage } from "@/lib/pagination";
+import { Boxes } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -70,10 +71,10 @@ export default async function ItemsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Items" description="Master list of all materials and services tracked in inventory." />
+      <PageHeader title="Items" description="Master list of all materials and services tracked in inventory." hero icon={Boxes} />
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <DataTable columns={columns} rows={items as Item[]} rowKey={(r) => r.id} emptyMessage="No items yet." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/items" />
+        <div className="min-w-0 lg:col-span-2">
+          <DataTable columns={columns} rows={items as Item[]} rowKey={(r) => r.id} emptyMessage="No items yet — add your first item." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/items" headerClassName="inv-table-head" zebra />
         </div>
         <div>
           <ItemForm categories={categories} warehouses={warehouses} />

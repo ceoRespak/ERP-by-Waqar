@@ -2,17 +2,27 @@ import { requirePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { listJournalEntries } from "@/server/finance/service";
 import { prisma } from "@/lib/db";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { SubmitToApprovalButton } from "@/components/approvals/submit-button";
 import { JournalForm } from "@/components/finance/journal-form";
 import { formatDate } from "@/lib/utils";
+import { ScrollText } from "lucide-react";
 
 type Row = Awaited<ReturnType<typeof listJournalEntries>>[number];
 
 const columns: Column<Row>[] = [
-  { key: "entryNo", header: "Entry", render: (r) => <span className="font-medium">{r.entryNo}</span> },
+  {
+    key: "entryNo",
+    header: "Entry",
+    render: (r) => (
+      <Link href={`/finance/journal/${r.id}`} className="font-medium text-primary hover:underline">
+        {r.entryNo}
+      </Link>
+    ),
+  },
   { key: "description", header: "Description" },
   { key: "lines", header: "Lines", className: "text-right", render: (r) => r.lines.length },
   {
@@ -41,8 +51,13 @@ export default async function JournalPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Journal Entries" description="Double-entry transactions. Posting goes through the approval workflow." />
-      <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." />
+      <PageHeader
+        title="Journal Entries"
+        description="Double-entry transactions. Posting goes through the approval workflow."
+        hero
+        icon={ScrollText}
+      />
+      <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." headerClassName="inv-table-head" zebra />
       <div className="mx-auto max-w-4xl">
         <JournalForm accounts={accounts} />
       </div>

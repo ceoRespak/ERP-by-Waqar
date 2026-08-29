@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, BookOpen } from "lucide-react";
 
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"] as const;
 
@@ -25,9 +25,12 @@ export function AccountForm({ accounts }: { accounts: { id: number; code: string
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">New Account</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="inv-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-white">
+          <BookOpen className="h-4 w-4" />
+          New Account
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -63,7 +66,7 @@ export function AccountForm({ accounts }: { accounts: { id: number; code: string
             <Input value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow hover:from-sky-600 hover:to-blue-700 hover:text-white">
             {loading ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
             {loading ? "Saving..." : "Add Account"}
           </Button>

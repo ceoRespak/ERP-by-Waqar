@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Loader2 } from "lucide-react";
+import { Loader2, PackagePlus } from "lucide-react";
 
 export function ItemForm({
   categories,
@@ -47,9 +47,12 @@ export function ItemForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">New Item</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="inv-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-white">
+          <PackagePlus className="h-4 w-4" />
+          New Item
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
@@ -97,7 +100,7 @@ export function ItemForm({
           </div>
           {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
           <div className="flex justify-end sm:col-span-2">
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow hover:from-sky-600 hover:to-indigo-700 hover:text-white">
               {loading && <Loader2 className="animate-spin" />}
               {loading ? "Saving..." : "Save Item"}
             </Button>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, SlidersHorizontal } from "lucide-react";
 
 export function AdjustmentForm({ items, warehouses }: { items: { id: number; code: string; name: string }[]; warehouses: { id: number; name: string }[] }) {
   const { submit, loading, error } = useSubmit("/api/inventory/transactions", "/inventory/transactions");
@@ -28,9 +28,12 @@ export function AdjustmentForm({ items, warehouses }: { items: { id: number; cod
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Stock Adjustment</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="inv-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-white">
+          <SlidersHorizontal className="h-4 w-4" />
+          Stock Adjustment
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -61,7 +64,7 @@ export function AdjustmentForm({ items, warehouses }: { items: { id: number; cod
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Reason for adjustment" />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow hover:from-rose-600 hover:to-pink-700 hover:text-white">
             {loading ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
             {loading ? "Posting..." : "Post Adjustment"}
           </Button>

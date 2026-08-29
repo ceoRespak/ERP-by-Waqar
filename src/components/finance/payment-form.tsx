@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Banknote } from "lucide-react";
 
 export function PaymentForm({ accounts }: { accounts: { id: number; code: string; name: string }[] }) {
   const { submit, loading, error } = useSubmit("/api/finance/payments", "/finance/payments");
@@ -36,9 +36,12 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">New Payment / Receipt</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="inv-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-white">
+          <Banknote className="h-4 w-4" />
+          New Payment / Receipt
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -91,7 +94,7 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow hover:from-emerald-600 hover:to-teal-700 hover:text-white">
             {loading ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
             {loading ? "Saving..." : "Save Payment"}
           </Button>

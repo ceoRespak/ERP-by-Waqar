@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 export type HubCard = {
@@ -7,6 +8,8 @@ export type HubCard = {
   description: string;
   href: string;
   icon: LucideIcon;
+  /** Tailwind gradient stops for the icon tile, e.g. "from-sky-500 to-blue-600". */
+  accent?: string;
 };
 
 export function ModuleHub({ title, description, cards }: { title: string; description: string; cards: HubCard[] }) {
@@ -17,13 +20,18 @@ export function ModuleHub({ title, description, cards }: { title: string; descri
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => (
           <Link key={c.href} href={c.href}>
-            <Card className="h-full transition-shadow hover:shadow-md">
+            <Card className="group h-full transition-all hover:-translate-y-0.5 hover:shadow-lg">
               <CardContent className="flex items-start gap-4 p-5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div
+                  className={cn(
+                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow",
+                    c.accent ?? "from-sky-500 to-blue-600"
+                  )}
+                >
                   <c.icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold">{c.title}</p>
+                  <p className="font-semibold group-hover:text-primary">{c.title}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">{c.description}</p>
                 </div>
               </CardContent>

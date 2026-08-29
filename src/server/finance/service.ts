@@ -41,6 +41,15 @@ export async function listJournalEntries(opts: { limit?: number } = {}) {
   });
 }
 
+export async function getJournalEntry(id: number) {
+  return prisma.journalEntry.findUnique({
+    where: { id },
+    include: {
+      lines: { include: { account: true }, orderBy: { id: "asc" } },
+    },
+  });
+}
+
 export async function createJournalEntry(data: {
   date?: string;
   description: string;

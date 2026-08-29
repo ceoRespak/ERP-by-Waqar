@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, ReceiptText, ListChecks } from "lucide-react";
 
 type Line = { description: string; quantity: string; unitPrice: string };
 
@@ -33,7 +33,7 @@ export function InvoiceForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await submit({
+    const ok = await submit({
       clientId: Number(clientId),
       projectId: projectId || null,
       date: date || null,
@@ -46,13 +46,25 @@ export function InvoiceForm({
         unitPrice: Number(l.unitPrice) || 0,
       })),
     });
+    if (ok) {
+      setClientId("");
+      setProjectId("");
+      setDate("");
+      setDueDate("");
+      setTaxRate("0");
+      setNotes("");
+      setLines([{ description: "", quantity: "1", unitPrice: "0" }]);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Invoice Details</CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="inv-card-header">
+          <CardTitle className="flex items-center gap-2 text-base text-white">
+            <ReceiptText className="h-4 w-4" />
+            Invoice Details
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -92,10 +104,13 @@ export function InvoiceForm({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Line Items</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, { description: "", quantity: "1", unitPrice: "0" }])}>
+      <Card className="overflow-hidden">
+        <CardHeader className="inv-card-header flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base text-white">
+            <ListChecks className="h-4 w-4" />
+            Line Items
+          </CardTitle>
+          <Button type="button" variant="outline" size="sm" className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setLines((ls) => [...ls, { description: "", quantity: "1", unitPrice: "0" }])}>
             <Plus className="h-4 w-4" /> Add Line
           </Button>
         </CardHeader>
@@ -127,7 +142,7 @@ export function InvoiceForm({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className="bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow hover:from-amber-600 hover:to-orange-700 hover:text-white">
           {loading && <Loader2 className="animate-spin" />}
           {loading ? "Saving..." : "Save Invoice"}
         </Button>

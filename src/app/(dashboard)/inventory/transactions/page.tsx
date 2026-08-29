@@ -9,6 +9,7 @@ import { AdjustmentForm } from "@/components/inventory/adjustment-form";
 import { TransferForm } from "@/components/inventory/transfer-form";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { parsePage } from "@/lib/pagination";
+import { ArrowLeftRight } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -44,10 +45,10 @@ export default async function TransactionsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Stock Transactions" description="Full movement history: receipts, issues, adjustments and transfers." />
+      <PageHeader title="Stock Transactions" description="Full movement history: receipts, issues, adjustments and transfers." hero icon={ArrowLeftRight} />
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <DataTable columns={columns} rows={transactions} rowKey={(r) => r.id} emptyMessage="No transactions yet." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/transactions" />
+        <div className="min-w-0 lg:col-span-2">
+          <DataTable columns={columns} rows={transactions} rowKey={(r) => r.id} emptyMessage="No transactions yet." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/transactions" headerClassName="inv-table-head" zebra />
         </div>
         <div className="space-y-6">
           <AdjustmentForm items={items} warehouses={warehouses} />

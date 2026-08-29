@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Pencil } from "lucide-react";
 
 export type ItemEdit = {
   id: number;
@@ -59,9 +59,12 @@ export function ItemEditForm({ item, categories }: { item: ItemEdit; categories:
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Edit Item</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="inv-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-white">
+          <Pencil className="h-4 w-4" />
+          Edit Item
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -101,7 +104,7 @@ export function ItemEditForm({ item, categories }: { item: ItemEdit; categories:
             Active item
           </label>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow hover:from-sky-600 hover:to-indigo-700 hover:text-white">
             {loading ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />}
             {loading ? "Saving..." : "Save Changes"}
           </Button>

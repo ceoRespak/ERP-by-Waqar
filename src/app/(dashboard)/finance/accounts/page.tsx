@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { AccountForm } from "@/components/finance/account-form";
+import { BookOpen } from "lucide-react";
 
 type Account = Awaited<ReturnType<typeof prisma.account.findMany>>[number];
 
@@ -21,10 +22,10 @@ export default async function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Chart of Accounts" description="Ledger structure for all financial transactions." />
+      <PageHeader title="Chart of Accounts" description="Ledger structure for all financial transactions." hero icon={BookOpen} />
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <DataTable columns={columns} rows={accounts} rowKey={(r) => r.id} emptyMessage="No accounts yet." />
+        <div className="min-w-0 lg:col-span-2">
+          <DataTable columns={columns} rows={accounts} rowKey={(r) => r.id} emptyMessage="No accounts yet." headerClassName="inv-table-head" zebra />
         </div>
         <AccountForm accounts={accounts} />
       </div>

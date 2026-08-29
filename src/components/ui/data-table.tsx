@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export type Column<T> = {
   key: string;
@@ -20,6 +21,10 @@ type Props<T> = {
   pageSize?: number;
   /** Base href (with any existing query params but NOT the page param) used to build prev/next links. */
   baseHref?: string;
+  /** Extra classes applied to every header cell (e.g. a colorful gradient). */
+  headerClassName?: string;
+  /** Alternate row background for readability. */
+  zebra?: boolean;
 };
 
 function pageHref(base: string, page: number) {
@@ -39,6 +44,8 @@ export function DataTable<T>({
   page,
   pageSize = 25,
   baseHref,
+  headerClassName,
+  zebra,
 }: Props<T>) {
   const total = rows.length;
   const pageRows = page ? rows.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize) : rows;
@@ -51,7 +58,7 @@ export function DataTable<T>({
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {columns.map((c) => (
-                <TableHead key={c.key} className={c.className}>
+                <TableHead key={c.key} className={cn(c.className, headerClassName)}>
                   {c.header}
                 </TableHead>
               ))}
@@ -66,7 +73,7 @@ export function DataTable<T>({
               </TableRow>
             ) : (
               pageRows.map((row) => (
-                <TableRow key={rowKey(row)}>
+                <TableRow key={rowKey(row)} className={zebra ? "odd:bg-muted/40" : undefined}>
                   {columns.map((c) => (
                     <TableCell key={c.key} className={c.className}>
                       {c.render ? c.render(row) : ((row as Record<string, unknown>)[c.key] as React.ReactNode)}
