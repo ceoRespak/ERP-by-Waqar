@@ -51,7 +51,7 @@ export default async function PaymentsPage() {
       <PageHeader title="Payments" description="Payments in and out, routed through the approval workflow." hero icon={Banknote} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
-          <DataTable columns={columns} rows={payments} rowKey={(r) => r.id} emptyMessage="No payments yet." headerClassName="inv-table-head" zebra />
+          <DataTable columns={columns} rows={payments} rowKey={(r) => r.id} emptyMessage="No payments yet." headerClassName="fin-table-head" zebra />
         </div>
         <PaymentForm accounts={accounts} />
       </div>

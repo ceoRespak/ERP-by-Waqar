@@ -46,11 +46,13 @@ export default async function JournalDetailPage({ params }: Props) {
     { label: "Lines", value: String(entry.lines.length), icon: ListChecks, accent: "from-amber-500 to-orange-600" },
   ];
 
+  const partyLabel = entry.vendor ? `Vendor: ${entry.vendor.name}` : entry.client ? `Customer: ${entry.client.name}` : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={`${entry.entryNo} — ${entry.description}`}
-        description={balanced ? "Balanced double-entry journal entry." : "Journal entry is NOT balanced."}
+        description={[balanced ? "Balanced double-entry journal entry." : "Journal entry is NOT balanced.", partyLabel].filter(Boolean).join(" · ")}
         hero
         icon={ScrollText}
       >
@@ -80,7 +82,7 @@ export default async function JournalDetailPage({ params }: Props) {
           <CardTitle className="text-base text-white">Entry Lines</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <DataTable columns={lineColumns} rows={entry.lines} rowKey={(r) => r.id} emptyMessage="No lines." headerClassName="inv-table-head" zebra />
+          <DataTable columns={lineColumns} rows={entry.lines} rowKey={(r) => r.id} emptyMessage="No lines." headerClassName="fin-table-head" zebra />
         </CardContent>
       </Card>
 

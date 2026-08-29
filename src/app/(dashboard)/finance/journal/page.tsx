@@ -24,6 +24,18 @@ const columns: Column<Row>[] = [
     ),
   },
   { key: "description", header: "Description" },
+  {
+    key: "party",
+    header: "Party",
+    render: (r) =>
+      r.vendor ? (
+        <Badge variant="info">Vendor · {r.vendor.name}</Badge>
+      ) : r.client ? (
+        <Badge variant="secondary">Customer · {r.client.name}</Badge>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
   { key: "lines", header: "Lines", className: "text-right", render: (r) => r.lines.length },
   {
     key: "status",
@@ -44,9 +56,11 @@ const columns: Column<Row>[] = [
 
 export default async function JournalPage() {
   await requirePermission(PERMISSIONS.FINANCE_READ);
-  const [entries, accounts] = await Promise.all([
+  const [entries, accounts, vendors, clients] = await Promise.all([
     listJournalEntries(),
     prisma.account.findMany({ select: { id: true, code: true, name: true }, orderBy: [{ type: "asc" }, { code: "asc" }] }),
+    prisma.vendor.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.client.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -57,9 +71,9 @@ export default async function JournalPage() {
         hero
         icon={ScrollText}
       />
-      <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." headerClassName="inv-table-head" zebra />
+      <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." headerClassName="fin-table-head" zebra />
       <div className="mx-auto max-w-4xl">
-        <JournalForm accounts={accounts} />
+        <JournalForm accounts={accounts} vendors={vendors} clients={clients} />
       </div>
     </div>
   );

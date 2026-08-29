@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Plus, Trash2, Loader2, ReceiptText, ListChecks } from "lucide-react";
+import { formatMoney } from "@/lib/utils";
+import { Plus, Trash2, Loader2, ReceiptText, ListChecks, Calculator } from "lucide-react";
 
 type Line = { description: string; quantity: string; unitPrice: string };
 
@@ -26,6 +27,10 @@ export function InvoiceForm({
   const [taxRate, setTaxRate] = useState("0");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([{ description: "", quantity: "1", unitPrice: "0" }]);
+
+  const subtotal = lines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0), 0);
+  const tax = (subtotal * (Number(taxRate) || 0)) / 100;
+  const grandTotal = subtotal + tax;
 
   function updateLine(idx: number, patch: Partial<Line>) {
     setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -136,6 +141,23 @@ export function InvoiceForm({
               </div>
             </div>
           ))}
+          <div className="flex items-center gap-2 rounded-xl border border-sky-100 bg-sky-50/60 p-4">
+            <Calculator className="h-5 w-5 shrink-0 text-sky-600" />
+            <div className="grid flex-1 gap-2 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Subtotal</p>
+                <p className="mt-0.5 text-lg font-bold text-slate-800">PKR {formatMoney(subtotal)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Tax ({taxRate || 0}%)</p>
+                <p className="mt-0.5 text-lg font-bold text-amber-600">PKR {formatMoney(tax)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Total</p>
+                <p className="mt-0.5 text-lg font-bold text-sky-700">PKR {formatMoney(grandTotal)}</p>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

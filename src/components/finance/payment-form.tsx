@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Loader2, Plus, Banknote } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Loader2, Banknote, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 export function PaymentForm({ accounts }: { accounts: { id: number; code: string; name: string }[] }) {
   const { submit, loading, error } = useSubmit("/api/finance/payments", "/finance/payments");
@@ -48,10 +49,34 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Type</Label>
-              <Select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="OUT">Payment (Out)</option>
-                <option value="IN">Receipt (In)</option>
-              </Select>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setType("OUT")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                    type === "OUT"
+                      ? "border-rose-500 bg-gradient-to-r from-rose-500 to-red-600 text-white shadow"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  Payment (Out)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("IN")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                    type === "IN"
+                      ? "border-emerald-500 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <ArrowDownLeft className="h-4 w-4" />
+                  Receipt (In)
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Method</Label>
@@ -63,8 +88,8 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Amount *</Label>
-            <Input type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+            <Label>Amount (PKR) *</Label>
+            <Input type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} required placeholder="0.00" />
           </div>
           <div className="space-y-2">
             <Label>Date</Label>
@@ -94,9 +119,17 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow hover:from-emerald-600 hover:to-teal-700 hover:text-white">
-            {loading ? <Loader2 className="animate-spin" /> : <Plus className="h-4 w-4" />}
-            {loading ? "Saving..." : "Save Payment"}
+          <Button
+            type="submit"
+            disabled={loading}
+            className={`w-full bg-gradient-to-r text-white shadow hover:text-white ${
+              type === "IN"
+                ? "from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+                : "from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700"
+            }`}
+          >
+            {loading ? <Loader2 className="animate-spin" /> : type === "IN" ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+            {loading ? "Saving..." : type === "IN" ? "Save Receipt (In)" : "Save Payment (Out)"}
           </Button>
         </form>
       </CardContent>

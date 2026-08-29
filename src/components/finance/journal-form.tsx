@@ -7,14 +7,27 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { Plus, Trash2, Loader2, ScrollText, ListChecks } from "lucide-react";
+import { cn, formatMoney } from "@/lib/utils";
+import { Plus, Trash2, Loader2, ScrollText, ListChecks, User, Truck, Building2 } from "lucide-react";
 
 type Line = { accountId: string; debit: string; credit: string; notes: string };
+type Party = "NONE" | "VENDOR" | "CLIENT";
 
-export function JournalForm({ accounts }: { accounts: { id: number; code: string; name: string }[] }) {
+export function JournalForm({
+  accounts,
+  vendors,
+  clients,
+}: {
+  accounts: { id: number; code: string; name: string }[];
+  vendors: { id: number; name: string }[];
+  clients: { id: number; name: string }[];
+}) {
   const { submit, loading, error } = useSubmit("/api/finance/journal", "/finance/journal");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
+  const [party, setParty] = useState<Party>("NONE");
+  const [vendorId, setVendorId] = useState("");
+  const [clientId, setClientId] = useState("");
   const [lines, setLines] = useState<Line[]>([{ accountId: "", debit: "0", credit: "0", notes: "" }]);
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
@@ -30,6 +43,8 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
     const ok = await submit({
       date: date || null,
       description,
+      vendorId: party === "VENDOR" && vendorId ? Number(vendorId) : null,
+      clientId: party === "CLIENT" && clientId ? Number(clientId) : null,
       lines: lines.map((l) => ({
         accountId: Number(l.accountId),
         debit: Number(l.debit) || 0,
@@ -40,9 +55,18 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
     if (ok) {
       setDate("");
       setDescription("");
+      setParty("NONE");
+      setVendorId("");
+      setClientId("");
       setLines([{ accountId: "", debit: "0", credit: "0", notes: "" }]);
     }
   }
+
+  const partyOptions: { value: Party; label: string; icon: typeof User }[] = [
+    { value: "NONE", label: "None", icon: User },
+    { value: "VENDOR", label: "Vendor", icon: Truck },
+    { value: "CLIENT", label: "Customer", icon: Building2 },
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -53,7 +77,7 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
             Journal Entry
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Date</Label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -61,6 +85,47 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
           <div className="space-y-2">
             <Label>Description *</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g. Office rent for August" />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Party (Vendor / Customer)</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {partyOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setParty(opt.value)}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                    party === opt.value
+                      ? "border-violet-500 bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <opt.icon className="h-4 w-4" />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {party === "VENDOR" && (
+              <div className="mt-3 rounded-lg border border-violet-100 bg-violet-50 p-3">
+                <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+                  <option value="">— Select vendor —</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {party === "CLIENT" && (
+              <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50 p-3">
+                <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                  <option value="">— Select customer —</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -75,7 +140,7 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
             <Plus className="h-4 w-4" /> Add Line
           </Button>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 pt-4">
           {lines.map((l, idx) => (
             <div key={idx} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-12">
               <div className="space-y-1 sm:col-span-4">
@@ -106,9 +171,21 @@ export function JournalForm({ accounts }: { accounts: { id: number; code: string
               </div>
             </div>
           ))}
-          <div className={`rounded-md px-3 py-2 text-sm ${balanced ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-            Debits: {totalDebit.toFixed(2)} · Credits: {totalCredit.toFixed(2)} ·{" "}
-            {balanced ? "Balanced ✓" : "Not balanced"}
+          <div className={`grid gap-2 rounded-xl border p-4 sm:grid-cols-3 ${balanced ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Total Debits</p>
+              <p className="mt-0.5 text-lg font-bold text-emerald-700">PKR {formatMoney(totalDebit)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Total Credits</p>
+              <p className="mt-0.5 text-lg font-bold text-rose-700">PKR {formatMoney(totalCredit)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Balance</p>
+              <p className={`mt-0.5 text-lg font-bold ${balanced ? "text-emerald-600" : "text-amber-600"}`}>
+                {balanced ? "✓ Balanced" : "Not balanced"}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

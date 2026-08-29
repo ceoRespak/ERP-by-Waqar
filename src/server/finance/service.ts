@@ -35,6 +35,8 @@ export async function listJournalEntries(opts: { limit?: number } = {}) {
   return prisma.journalEntry.findMany({
     include: {
       lines: { include: { account: true } },
+      vendor: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
     take: opts.limit ?? 200,
@@ -46,6 +48,8 @@ export async function getJournalEntry(id: number) {
     where: { id },
     include: {
       lines: { include: { account: true }, orderBy: { id: "asc" } },
+      vendor: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true } },
     },
   });
 }
@@ -54,6 +58,8 @@ export async function createJournalEntry(data: {
   date?: string;
   description: string;
   createdById?: number | null;
+  vendorId?: number | null;
+  clientId?: number | null;
   lines: { accountId: number; debit: number; credit: number; notes?: string }[];
 }) {
   const totalDebit = data.lines.reduce((s, l) => s + l.debit, 0);
@@ -68,6 +74,8 @@ export async function createJournalEntry(data: {
       date: data.date ? new Date(data.date) : new Date(),
       description: data.description,
       createdById: data.createdById ?? null,
+      vendorId: data.vendorId ?? null,
+      clientId: data.clientId ?? null,
       status: "DRAFT",
       lines: { create: data.lines },
     },

@@ -45,7 +45,7 @@ export default async function InvoicesPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Client Invoices" description="Bill clients for projects & services." hero icon={ReceiptText} />
-      <DataTable columns={columns} rows={invoices} rowKey={(r) => r.id} emptyMessage="No invoices yet." headerClassName="inv-table-head" zebra />
+      <DataTable columns={columns} rows={invoices} rowKey={(r) => r.id} emptyMessage="No invoices yet." headerClassName="fin-table-head" zebra />
       <div className="mx-auto max-w-4xl">
         <InvoiceForm clients={clients} projects={projects} />
       </div>

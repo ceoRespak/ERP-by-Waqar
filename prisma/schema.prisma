@@ -574,10 +574,14 @@ model JournalEntry {
   status            String   @default("DRAFT") // DRAFT | PENDING | POSTED | REJECTED
   approvalRequestId Int?     @unique
   createdById       Int?
+  vendorId          Int?
+  clientId          Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  lines JournalEntryLine[]
+  lines  JournalEntryLine[]
+  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([date])
 }
@@ -1224,6 +1228,7 @@ model Vendor {
   purchaseOrders   PurchaseOrder[]
   fuelLogs         FuelLog[]
   supplierInvoices SupplierInvoice[]
+  journalEntries   JournalEntry[]
 
   @@index([type])
   @@index([status])
@@ -1293,6 +1298,7 @@ model Client {
   contracts ClientContract[]
   projects  Project[]
   invoices  ClientInvoice[]
+  journalEntries JournalEntry[]
 
   @@index([status])
 }
