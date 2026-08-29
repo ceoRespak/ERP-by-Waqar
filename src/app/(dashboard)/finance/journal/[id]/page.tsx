@@ -40,6 +40,11 @@ export default async function JournalDetailPage({ params }: Props) {
       render: (r) => (r.project ? `${r.project.code} — ${r.project.name}` : "—"),
     },
     {
+      key: "item",
+      header: "Item",
+      render: (r) => (r.item ? `${r.item.code} — ${r.item.name}` : "—"),
+    },
+    {
       key: "vendor",
       header: "Vendor",
       render: (r) => (r.vendor ? r.vendor.name : "—"),

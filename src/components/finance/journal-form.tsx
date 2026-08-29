@@ -10,21 +10,23 @@ import { useSubmit } from "@/hooks/use-submit";
 import { formatMoney } from "@/lib/utils";
 import { Plus, Trash2, Loader2, ScrollText, ListChecks } from "lucide-react";
 
-type Line = { accountId: string; projectId: string; vendorId: string; debit: string; credit: string; notes: string };
+type Line = { accountId: string; projectId: string; itemId: string; vendorId: string; debit: string; credit: string; notes: string };
 
 export function JournalForm({
   accounts,
   vendors,
   projects,
+  items,
 }: {
   accounts: { id: number; code: string; name: string }[];
   vendors: { id: number; name: string }[];
   projects: { id: number; code: string; name: string }[];
+  items: { id: number; code: string; name: string; unit: string }[];
 }) {
   const { submit, loading, error } = useSubmit("/api/finance/journal", "/finance/journal");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ accountId: "", projectId: "", vendorId: "", debit: "0", credit: "0", notes: "" }]);
+  const [lines, setLines] = useState<Line[]>([{ accountId: "", projectId: "", itemId: "", vendorId: "", debit: "0", credit: "0", notes: "" }]);
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
   const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
@@ -43,6 +45,7 @@ export function JournalForm({
         accountId: Number(l.accountId),
         projectId: l.projectId ? Number(l.projectId) : null,
         vendorId: l.vendorId ? Number(l.vendorId) : null,
+        itemId: l.itemId ? Number(l.itemId) : null,
         debit: Number(l.debit) || 0,
         credit: Number(l.credit) || 0,
         notes: l.notes || undefined,
@@ -51,7 +54,7 @@ export function JournalForm({
     if (ok) {
       setDate("");
       setDescription("");
-      setLines([{ accountId: "", projectId: "", vendorId: "", debit: "0", credit: "0", notes: "" }]);
+      setLines([{ accountId: "", projectId: "", itemId: "", vendorId: "", debit: "0", credit: "0", notes: "" }]);
     }
   }
 
@@ -81,7 +84,7 @@ export function JournalForm({
               <ListChecks className="h-4 w-4 text-violet-600" />
               Lines (must balance)
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, { accountId: "", projectId: "", vendorId: "", debit: "0", credit: "0", notes: "" }])}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, { accountId: "", projectId: "", itemId: "", vendorId: "", debit: "0", credit: "0", notes: "" }])}>
               <Plus className="h-4 w-4" /> Add Line
             </Button>
           </div>
@@ -107,7 +110,16 @@ export function JournalForm({
                     ))}
                   </Select>
                 </div>
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1 sm:col-span-3">
+                  <Label className="text-xs">Item</Label>
+                  <Select value={l.itemId} onChange={(e) => updateLine(idx, { itemId: e.target.value })}>
+                    <option value="">— None —</option>
+                    {items.map((i) => (
+                      <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:col-span-3">
                   <Label className="text-xs">Vendor</Label>
                   <Select value={l.vendorId} onChange={(e) => updateLine(idx, { vendorId: e.target.value })}>
                     <option value="">— None —</option>
@@ -116,22 +128,22 @@ export function JournalForm({
                     ))}
                   </Select>
                 </div>
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1 sm:col-span-5">
                   <Label className="text-xs">Debit</Label>
                   <Input type="number" min="0" step="any" value={l.debit} onChange={(e) => updateLine(idx, { debit: e.target.value })} />
                 </div>
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1 sm:col-span-5">
                   <Label className="text-xs">Credit</Label>
                   <Input type="number" min="0" step="any" value={l.credit} onChange={(e) => updateLine(idx, { credit: e.target.value })} />
                 </div>
-                <div className="space-y-1 sm:col-span-11">
-                  <Label className="text-xs">Notes</Label>
-                  <Input value={l.notes} onChange={(e) => updateLine(idx, { notes: e.target.value })} />
-                </div>
-                <div className="flex items-end justify-end sm:col-span-1">
+                <div className="flex items-end justify-end sm:col-span-2">
                   <Button type="button" variant="ghost" size="icon" onClick={() => setLines((ls) => ls.filter((_, i) => i !== idx))} disabled={lines.length === 1}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
+                </div>
+                <div className="space-y-1 sm:col-span-12">
+                  <Label className="text-xs">Notes</Label>
+                  <Input value={l.notes} onChange={(e) => updateLine(idx, { notes: e.target.value })} />
                 </div>
               </div>
             ))}

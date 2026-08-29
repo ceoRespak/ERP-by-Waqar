@@ -476,6 +476,7 @@ model Item {
   grnItems             GRNItem[]
   materialRequestItems MaterialRequestItem[]
   materialIssueItems   MaterialIssueItem[]
+  journalLines         JournalEntryLine[]
 
   @@index([categoryId])
 }
@@ -592,6 +593,7 @@ model JournalEntryLine {
   accountId Int
   projectId Int?
   vendorId  Int?
+  itemId    Int?
   debit     Decimal @default(0) @db.Decimal(14, 2)
   credit    Decimal @default(0) @db.Decimal(14, 2)
   notes     String?
@@ -600,6 +602,7 @@ model JournalEntryLine {
   account Account      @relation(fields: [accountId], references: [id])
   project Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
   vendor  Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  item    Item?        @relation(fields: [itemId], references: [id], onDelete: SetNull)
 }
 
 enum PaymentMethod {

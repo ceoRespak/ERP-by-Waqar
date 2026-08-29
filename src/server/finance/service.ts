@@ -34,7 +34,7 @@ export async function createAccount(data: {
 export async function listJournalEntries(opts: { limit?: number } = {}) {
   return prisma.journalEntry.findMany({
     include: {
-      lines: { include: { account: true, project: { select: { id: true, code: true, name: true } }, vendor: { select: { id: true, name: true } } } },
+      lines: { include: { account: true, project: { select: { id: true, code: true, name: true } }, vendor: { select: { id: true, name: true } }, item: { select: { id: true, code: true, name: true, unit: true } } } },
       vendor: { select: { id: true, name: true } },
       project: { select: { id: true, code: true, name: true } },
     },
@@ -47,7 +47,7 @@ export async function getJournalEntry(id: number) {
   return prisma.journalEntry.findUnique({
     where: { id },
     include: {
-      lines: { include: { account: true, project: { select: { id: true, code: true, name: true } }, vendor: { select: { id: true, name: true } } }, orderBy: { id: "asc" } },
+      lines: { include: { account: true, project: { select: { id: true, code: true, name: true } }, vendor: { select: { id: true, name: true } }, item: { select: { id: true, code: true, name: true, unit: true } } }, orderBy: { id: "asc" } },
       vendor: { select: { id: true, name: true } },
       project: { select: { id: true, code: true, name: true } },
     },
@@ -60,7 +60,7 @@ export async function createJournalEntry(data: {
   createdById?: number | null;
   vendorId?: number | null;
   projectId?: number | null;
-  lines: { accountId: number; debit: number; credit: number; notes?: string; projectId?: number | null; vendorId?: number | null }[];
+  lines: { accountId: number; debit: number; credit: number; notes?: string; projectId?: number | null; vendorId?: number | null; itemId?: number | null }[];
 }) {
   const totalDebit = data.lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = data.lines.reduce((s, l) => s + l.credit, 0);
