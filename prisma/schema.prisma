@@ -590,12 +590,14 @@ model JournalEntryLine {
   id        Int     @id @default(autoincrement())
   entryId   Int
   accountId Int
+  projectId Int?
   debit     Decimal @default(0) @db.Decimal(14, 2)
   credit    Decimal @default(0) @db.Decimal(14, 2)
   notes     String?
 
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account Account      @relation(fields: [accountId], references: [id])
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
 }
 
 enum PaymentMethod {
@@ -1400,6 +1402,7 @@ model Project {
   safetyIncidents      SafetyIncident[]
   userPermissionGrants UserProjectPermission[]
   attachments          ProjectAttachment[]
+  journalLines         JournalEntryLine[]
 
   @@index([status])
   @@index([category])

@@ -34,6 +34,11 @@ export default async function JournalDetailPage({ params }: Props) {
         </>
       ),
     },
+    {
+      key: "project",
+      header: "Project",
+      render: (r) => (r.project ? `${r.project.code} — ${r.project.name}` : "—"),
+    },
     { key: "debit", header: "Debit", className: "text-right", render: (r) => formatNumber(r.debit) },
     { key: "credit", header: "Credit", className: "text-right", render: (r) => formatNumber(r.credit) },
     { key: "notes", header: "Notes", render: (r) => r.notes ?? "—" },

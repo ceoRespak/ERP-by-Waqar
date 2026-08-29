@@ -56,11 +56,12 @@ const columns: Column<Row>[] = [
 
 export default async function JournalPage() {
   await requirePermission(PERMISSIONS.FINANCE_READ);
-  const [entries, accounts, vendors, clients] = await Promise.all([
+  const [entries, accounts, vendors, clients, projects] = await Promise.all([
     listJournalEntries(),
     prisma.account.findMany({ select: { id: true, code: true, name: true }, orderBy: [{ type: "asc" }, { code: "asc" }] }),
     prisma.vendor.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.client.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.project.findMany({ select: { id: true, code: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -73,7 +74,7 @@ export default async function JournalPage() {
       />
       <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." headerClassName="fin-table-head" zebra />
       <div className="mx-auto max-w-4xl">
-        <JournalForm accounts={accounts} vendors={vendors} clients={clients} />
+        <JournalForm accounts={accounts} vendors={vendors} clients={clients} projects={projects} />
       </div>
     </div>
   );
