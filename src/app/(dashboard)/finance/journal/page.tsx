@@ -71,10 +71,10 @@ export default async function JournalPage() {
         hero
         icon={ScrollText}
       />
-      <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." headerClassName="fin-table-head" zebra />
       <div className="mx-auto max-w-4xl">
         <JournalForm accounts={accounts} vendors={vendors} projects={projects} />
       </div>
+      <DataTable columns={columns} rows={entries} rowKey={(r) => r.id} emptyMessage="No journal entries yet." headerClassName="fin-table-head" zebra />
     </div>
   );
 }

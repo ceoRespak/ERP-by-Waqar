@@ -7,11 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { cn, formatMoney } from "@/lib/utils";
-import { Plus, Trash2, Loader2, ScrollText, ListChecks, User, Truck, Building2 } from "lucide-react";
+import { formatMoney } from "@/lib/utils";
+import { Plus, Trash2, Loader2, ScrollText, ListChecks } from "lucide-react";
 
 type Line = { accountId: string; projectId: string; debit: string; credit: string; notes: string };
-type Party = "NONE" | "VENDOR" | "CLIENT";
 
 export function JournalForm({
   accounts,
@@ -25,7 +24,6 @@ export function JournalForm({
   const { submit, loading, error } = useSubmit("/api/finance/journal", "/finance/journal");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
-  const [party, setParty] = useState<Party>("NONE");
   const [vendorId, setVendorId] = useState("");
   const [customerProjectId, setCustomerProjectId] = useState("");
   const [lines, setLines] = useState<Line[]>([{ accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }]);
@@ -43,8 +41,8 @@ export function JournalForm({
     const ok = await submit({
       date: date || null,
       description,
-      vendorId: party === "VENDOR" && vendorId ? Number(vendorId) : null,
-      projectId: party === "CLIENT" && customerProjectId ? Number(customerProjectId) : null,
+      vendorId: vendorId ? Number(vendorId) : null,
+      projectId: customerProjectId ? Number(customerProjectId) : null,
       lines: lines.map((l) => ({
         accountId: Number(l.accountId),
         projectId: l.projectId ? Number(l.projectId) : null,
@@ -56,18 +54,11 @@ export function JournalForm({
     if (ok) {
       setDate("");
       setDescription("");
-      setParty("NONE");
       setVendorId("");
       setCustomerProjectId("");
       setLines([{ accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }]);
     }
   }
-
-  const partyOptions: { value: Party; label: string; icon: typeof User }[] = [
-    { value: "NONE", label: "None", icon: User },
-    { value: "VENDOR", label: "Vendor", icon: Truck },
-    { value: "CLIENT", label: "Customer", icon: Building2 },
-  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -87,46 +78,25 @@ export function JournalForm({
             <Label>Description *</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g. Office rent for August" />
           </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label>Party (Vendor / Customer)</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {partyOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setParty(opt.value)}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
-                    party === opt.value
-                      ? "border-violet-500 bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                  )}
-                >
-                  <opt.icon className="h-4 w-4" />
-                  {opt.label}
-                </button>
-              ))}
+          <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2">
+            <div className="space-y-2">
+              <Label>Vendor (optional)</Label>
+              <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+                <option value="">— Select vendor —</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </Select>
             </div>
-            {party === "VENDOR" && (
-              <div className="mt-3 rounded-lg border border-violet-100 bg-violet-50 p-3">
-                <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                  <option value="">— Select vendor —</option>
-                  {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </Select>
-              </div>
-            )}
-            {party === "CLIENT" && (
-              <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50 p-3">
-                <Select value={customerProjectId} onChange={(e) => setCustomerProjectId(e.target.value)}>
-                  <option value="">— Select customer (project) —</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                  ))}
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Customer (Project)</Label>
+              <Select value={customerProjectId} onChange={(e) => setCustomerProjectId(e.target.value)}>
+                <option value="">— Select customer (project) —</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                ))}
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
