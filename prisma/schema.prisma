@@ -591,6 +591,7 @@ model JournalEntryLine {
   entryId   Int
   accountId Int
   projectId Int?
+  vendorId  Int?
   debit     Decimal @default(0) @db.Decimal(14, 2)
   credit    Decimal @default(0) @db.Decimal(14, 2)
   notes     String?
@@ -598,6 +599,7 @@ model JournalEntryLine {
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account Account      @relation(fields: [accountId], references: [id])
   project Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  vendor  Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 }
 
 enum PaymentMethod {
@@ -1231,6 +1233,7 @@ model Vendor {
   fuelLogs         FuelLog[]
   supplierInvoices SupplierInvoice[]
   journalEntries   JournalEntry[]
+  journalLines     JournalEntryLine[]
 
   @@index([type])
   @@index([status])

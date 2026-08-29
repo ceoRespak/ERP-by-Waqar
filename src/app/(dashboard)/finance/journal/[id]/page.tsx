@@ -39,6 +39,11 @@ export default async function JournalDetailPage({ params }: Props) {
       header: "Project",
       render: (r) => (r.project ? `${r.project.code} — ${r.project.name}` : "—"),
     },
+    {
+      key: "vendor",
+      header: "Vendor",
+      render: (r) => (r.vendor ? r.vendor.name : "—"),
+    },
     { key: "debit", header: "Debit", className: "text-right", render: (r) => formatNumber(r.debit) },
     { key: "credit", header: "Credit", className: "text-right", render: (r) => formatNumber(r.credit) },
     { key: "notes", header: "Notes", render: (r) => r.notes ?? "—" },
@@ -51,7 +56,10 @@ export default async function JournalDetailPage({ params }: Props) {
     { label: "Lines", value: String(entry.lines.length), icon: ListChecks, accent: "from-amber-500 to-orange-600" },
   ];
 
-  const partyLabel = entry.vendor ? `Vendor: ${entry.vendor.name}` : entry.project ? `Customer: ${entry.project.code} — ${entry.project.name}` : null;
+  const lineVendors = [...new Set(entry.lines.map((l) => l.vendor?.name).filter(Boolean))] as string[];
+  const lineProjects = [...new Set(entry.lines.map((l) => (l.project ? `${l.project.code} — ${l.project.name}` : "")).filter(Boolean))] as string[];
+  const partyLabel =
+    [lineVendors.length ? `Vendors: ${lineVendors.join(", ")}` : "", lineProjects.length ? `Customers: ${lineProjects.join(", ")}` : ""].filter(Boolean).join(" · ") || null;
 
   return (
     <div className="space-y-6">

@@ -27,14 +27,22 @@ const columns: Column<Row>[] = [
   {
     key: "party",
     header: "Party",
-    render: (r) =>
-      r.vendor ? (
-        <Badge variant="info">Vendor · {r.vendor.name}</Badge>
-      ) : r.project ? (
-        <Badge variant="secondary">Customer · {r.project.code} — {r.project.name}</Badge>
+    render: (r) => {
+      const vendors = r.lines.map((l) => l.vendor?.name).filter(Boolean) as string[];
+      const projects = r.lines.map((l) => (l.project ? `${l.project.code} — ${l.project.name}` : "")).filter(Boolean) as string[];
+      const labels: string[] = [];
+      if (vendors.length) labels.push(`Vendor: ${vendors[0]}`);
+      if (projects.length) labels.push(`Customer: ${projects[0]}`);
+      return labels.length ? (
+        <div className="flex flex-col items-start gap-1">
+          {labels.map((s) => (
+            <Badge key={s} variant={s.startsWith("Vendor") ? "info" : "secondary"}>{s}</Badge>
+          ))}
+        </div>
       ) : (
         <span className="text-muted-foreground">—</span>
-      ),
+      );
+    },
   },
   { key: "lines", header: "Lines", className: "text-right", render: (r) => r.lines.length },
   {

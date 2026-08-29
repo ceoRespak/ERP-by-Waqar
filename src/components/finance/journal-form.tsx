@@ -10,7 +10,7 @@ import { useSubmit } from "@/hooks/use-submit";
 import { formatMoney } from "@/lib/utils";
 import { Plus, Trash2, Loader2, ScrollText, ListChecks } from "lucide-react";
 
-type Line = { accountId: string; projectId: string; debit: string; credit: string; notes: string };
+type Line = { accountId: string; projectId: string; vendorId: string; debit: string; credit: string; notes: string };
 
 export function JournalForm({
   accounts,
@@ -24,9 +24,7 @@ export function JournalForm({
   const { submit, loading, error } = useSubmit("/api/finance/journal", "/finance/journal");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
-  const [vendorId, setVendorId] = useState("");
-  const [customerProjectId, setCustomerProjectId] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }]);
+  const [lines, setLines] = useState<Line[]>([{ accountId: "", projectId: "", vendorId: "", debit: "0", credit: "0", notes: "" }]);
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
   const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
@@ -41,11 +39,10 @@ export function JournalForm({
     const ok = await submit({
       date: date || null,
       description,
-      vendorId: vendorId ? Number(vendorId) : null,
-      projectId: customerProjectId ? Number(customerProjectId) : null,
       lines: lines.map((l) => ({
         accountId: Number(l.accountId),
         projectId: l.projectId ? Number(l.projectId) : null,
+        vendorId: l.vendorId ? Number(l.vendorId) : null,
         debit: Number(l.debit) || 0,
         credit: Number(l.credit) || 0,
         notes: l.notes || undefined,
@@ -54,9 +51,7 @@ export function JournalForm({
     if (ok) {
       setDate("");
       setDescription("");
-      setVendorId("");
-      setCustomerProjectId("");
-      setLines([{ accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }]);
+      setLines([{ accountId: "", projectId: "", vendorId: "", debit: "0", credit: "0", notes: "" }]);
     }
   }
 
@@ -69,102 +64,92 @@ export function JournalForm({
             Journal Entry
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Description *</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g. Office rent for August" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2">
+        <CardContent className="space-y-4 pt-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Vendor (optional)</Label>
-              <Select value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                <option value="">— Select vendor —</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>{v.name}</option>
-                ))}
-              </Select>
+              <Label>Date</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Customer (Project)</Label>
-              <Select value={customerProjectId} onChange={(e) => setCustomerProjectId(e.target.value)}>
-                <option value="">— Select customer (project) —</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                ))}
-              </Select>
+              <Label>Description *</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g. Office rent for August" />
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card className="overflow-hidden">
-        <CardHeader className="inv-card-header flex-row items-center justify-between space-y-0">
-          <CardTitle className="flex items-center gap-2 text-base text-white">
-            <ListChecks className="h-4 w-4" />
-            Lines (must balance)
-          </CardTitle>
-          <Button type="button" variant="outline" size="sm" className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setLines((ls) => [...ls, { accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }])}>
-            <Plus className="h-4 w-4" /> Add Line
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3 pt-4">
-          {lines.map((l, idx) => (
-            <div key={idx} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-12">
-              <div className="space-y-1 sm:col-span-4">
-                <Label className="text-xs">Account *</Label>
-                <Select value={l.accountId} onChange={(e) => updateLine(idx, { accountId: e.target.value })} required>
-                  <option value="">— Select —</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="space-y-1 sm:col-span-4">
-                <Label className="text-xs">Project *</Label>
-                <Select value={l.projectId} onChange={(e) => updateLine(idx, { projectId: e.target.value })} required>
-                  <option value="">— Select project —</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs">Debit</Label>
-                <Input type="number" min="0" step="any" value={l.debit} onChange={(e) => updateLine(idx, { debit: e.target.value })} />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <Label className="text-xs">Credit</Label>
-                <Input type="number" min="0" step="any" value={l.credit} onChange={(e) => updateLine(idx, { credit: e.target.value })} />
-              </div>
-              <div className="space-y-1 sm:col-span-11">
-                <Label className="text-xs">Notes</Label>
-                <Input value={l.notes} onChange={(e) => updateLine(idx, { notes: e.target.value })} />
-              </div>
-              <div className="flex items-end justify-end sm:col-span-1">
-                <Button type="button" variant="ghost" size="icon" onClick={() => setLines((ls) => ls.filter((_, i) => i !== idx))} disabled={lines.length === 1}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
+          <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <ListChecks className="h-4 w-4 text-violet-600" />
+              Lines (must balance)
             </div>
-          ))}
-          <div className={`grid gap-2 rounded-xl border p-4 sm:grid-cols-3 ${balanced ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Total Debits</p>
-              <p className="mt-0.5 text-lg font-bold text-emerald-700">PKR {formatMoney(totalDebit)}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Total Credits</p>
-              <p className="mt-0.5 text-lg font-bold text-rose-700">PKR {formatMoney(totalCredit)}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Balance</p>
-              <p className={`mt-0.5 text-lg font-bold ${balanced ? "text-emerald-600" : "text-amber-600"}`}>
-                {balanced ? "✓ Balanced" : "Not balanced"}
-              </p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, { accountId: "", projectId: "", vendorId: "", debit: "0", credit: "0", notes: "" }])}>
+              <Plus className="h-4 w-4" /> Add Line
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {lines.map((l, idx) => (
+              <div key={idx} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-12">
+                <div className="space-y-1 sm:col-span-3">
+                  <Label className="text-xs">Account *</Label>
+                  <Select value={l.accountId} onChange={(e) => updateLine(idx, { accountId: e.target.value })} required>
+                    <option value="">— Select —</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:col-span-3">
+                  <Label className="text-xs">Project *</Label>
+                  <Select value={l.projectId} onChange={(e) => updateLine(idx, { projectId: e.target.value })} required>
+                    <option value="">— Select project —</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Vendor</Label>
+                  <Select value={l.vendorId} onChange={(e) => updateLine(idx, { vendorId: e.target.value })}>
+                    <option value="">— None —</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Debit</Label>
+                  <Input type="number" min="0" step="any" value={l.debit} onChange={(e) => updateLine(idx, { debit: e.target.value })} />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs">Credit</Label>
+                  <Input type="number" min="0" step="any" value={l.credit} onChange={(e) => updateLine(idx, { credit: e.target.value })} />
+                </div>
+                <div className="space-y-1 sm:col-span-11">
+                  <Label className="text-xs">Notes</Label>
+                  <Input value={l.notes} onChange={(e) => updateLine(idx, { notes: e.target.value })} />
+                </div>
+                <div className="flex items-end justify-end sm:col-span-1">
+                  <Button type="button" variant="ghost" size="icon" onClick={() => setLines((ls) => ls.filter((_, i) => i !== idx))} disabled={lines.length === 1}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <div className={`grid gap-2 rounded-xl border p-4 sm:grid-cols-3 ${balanced ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Total Debits</p>
+                <p className="mt-0.5 text-lg font-bold text-emerald-700">PKR {formatMoney(totalDebit)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Total Credits</p>
+                <p className="mt-0.5 text-lg font-bold text-rose-700">PKR {formatMoney(totalCredit)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Balance</p>
+                <p className={`mt-0.5 text-lg font-bold ${balanced ? "text-emerald-600" : "text-amber-600"}`}>
+                  {balanced ? "✓ Balanced" : "Not balanced"}
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
