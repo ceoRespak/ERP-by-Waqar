@@ -1,13 +1,19 @@
 import { requirePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { stockLevels, getStockValuation } from "@/server/inventory/service";
+import { prisma } from "@/lib/db";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { formatMoney, formatNumber } from "@/lib/utils";
 import { parsePage } from "@/lib/pagination";
-import { Wallet, Layers, AlertTriangle, PackageX } from "lucide-react";
+import { Wallet, Layers, AlertTriangle, PackageX, Search } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -16,12 +22,18 @@ type Row = Awaited<ReturnType<typeof stockLevels>>[number];
 export default async function StockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; warehouse?: string }>;
 }) {
   await requirePermission(PERMISSIONS.INVENTORY_READ);
   const params = await searchParams;
   const page = parsePage(params.page);
-  const [stock, valuation] = await Promise.all([stockLevels(), getStockValuation()]);
+  const q = (params.q ?? "").trim().toLowerCase();
+  const warehouseId = params.warehouse ? Number(params.warehouse) : undefined;
+  const [stock, valuation, warehouses] = await Promise.all([stockLevels(), getStockValuation(), prisma.warehouse.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })]);
+
+  let filteredStock = stock;
+  if (q) filteredStock = filteredStock.filter((r) => r.item.name.toLowerCase().includes(q) || r.item.code.toLowerCase().includes(q));
+  if (warehouseId) filteredStock = filteredStock.filter((r) => r.warehouse.id === warehouseId);
 
   const lowStock = stock.filter((r) => r.quantity.toNumber() > 0 && r.quantity.toNumber() <= r.item.reorderLevel.toNumber());
   const outOfStock = stock.filter((r) => r.quantity.toNumber() <= 0);
@@ -102,7 +114,38 @@ export default async function StockPage({
         ))}
       </div>
 
-      <DataTable columns={columns} rows={stock} rowKey={(r) => r.id} emptyMessage="No stock recorded yet — receive goods against a PO or add opening stock." page={page} pageSize={PAGE_SIZE} baseHref="/inventory/stock" headerClassName="inv-table-head" zebra />
+      <form method="get" action="/inventory/stock" className="flex flex-col gap-3 rounded-xl border bg-white p-3 shadow-sm sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-1">
+          <Label className="text-xs text-muted-foreground">Search stock</Label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input name="q" defaultValue={q} placeholder="Search by item code or name..." className="pl-8" />
+          </div>
+        </div>
+        <div className="space-y-1 sm:w-56">
+          <Label className="text-xs text-muted-foreground">Warehouse</Label>
+          <Select name="warehouse" defaultValue={warehouseId ? String(warehouseId) : ""}>
+            <option value="">All warehouses</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>{w.name}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit" variant="outline">Filter</Button>
+          {(q || warehouseId) && (
+            <Link href="/inventory/stock" className={buttonVariants({ variant: "ghost" })}>Clear</Link>
+          )}
+        </div>
+      </form>
+
+      <DataTable columns={columns} rows={filteredStock} rowKey={(r) => r.id} emptyMessage="No stock matches your filters." page={page} pageSize={PAGE_SIZE} baseHref={(() => {
+        const fp = new URLSearchParams();
+        if (q) fp.set("q", q);
+        if (warehouseId) fp.set("warehouse", String(warehouseId));
+        const s = fp.toString();
+        return `/inventory/stock${s ? `?${s}` : ""}`;
+      })()} headerClassName="inv-table-head" zebra />
     </div>
   );
 }
