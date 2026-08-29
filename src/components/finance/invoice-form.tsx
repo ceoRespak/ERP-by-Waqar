@@ -65,8 +65,8 @@ export function InvoiceForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card className="overflow-hidden">
-        <CardHeader className="inv-card-header">
-          <CardTitle className="flex items-center gap-2 text-base text-white">
+        <CardHeader className="fin-card-header">
+          <CardTitle className="flex items-center gap-2 text-base text-slate-800">
             <ReceiptText className="h-4 w-4" />
             Invoice Details
           </CardTitle>
@@ -110,12 +110,12 @@ export function InvoiceForm({
       </Card>
 
       <Card className="overflow-hidden">
-        <CardHeader className="inv-card-header flex-row items-center justify-between space-y-0">
-          <CardTitle className="flex items-center gap-2 text-base text-white">
+        <CardHeader className="fin-card-header flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base text-slate-800">
             <ListChecks className="h-4 w-4" />
             Line Items
           </CardTitle>
-          <Button type="button" variant="outline" size="sm" className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setLines((ls) => [...ls, { description: "", quantity: "1", unitPrice: "0" }])}>
+          <Button type="button" variant="outline" size="sm" className="border-slate-300 text-slate-600 hover:bg-slate-100" onClick={() => setLines((ls) => [...ls, { description: "", quantity: "1", unitPrice: "0" }])}>
             <Plus className="h-4 w-4" /> Add Line
           </Button>
         </CardHeader>

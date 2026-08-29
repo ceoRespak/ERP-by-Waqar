@@ -22,7 +22,7 @@ export default async function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Chart of Accounts" description="Ledger structure for all financial transactions." hero icon={BookOpen} />
+      <PageHeader title="Chart of Accounts" description="Ledger structure for all financial transactions." hero tone="light" icon={BookOpen} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <DataTable columns={columns} rows={accounts} rowKey={(r) => r.id} emptyMessage="No accounts yet." headerClassName="fin-table-head" zebra />

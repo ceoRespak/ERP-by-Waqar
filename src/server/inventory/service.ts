@@ -40,7 +40,9 @@ export async function createItem(data: {
   openingStock?: number;
   openingWarehouseId?: number | null;
   description?: string | null;
+  isInventoryItem?: boolean;
 }) {
+  const isInventoryItem = data.isInventoryItem !== false;
   const record = await prisma.item.create({
     data: {
       code: data.code,
@@ -49,11 +51,13 @@ export async function createItem(data: {
       unit: data.unit || "EA",
       reorderLevel: data.reorderLevel ?? 0,
       openingStock: data.openingStock ?? 0,
+      isInventoryItem,
       description: data.description,
     },
   });
 
-  if (data.openingStock && data.openingStock > 0) {
+  // Only inventory-tracked items get opening stock recorded.
+  if (isInventoryItem && data.openingStock && data.openingStock > 0) {
     // Resolve the opening-stock warehouse — never hardcode id 1 (item
     // creation would fail if that warehouse doesn't exist). Default to the
     // first warehouse when the form didn't pick one.
@@ -306,6 +310,7 @@ export async function updateItem(
     reorderLevel?: number;
     description?: string | null;
     isActive?: boolean;
+    isInventoryItem?: boolean;
   }
 ) {
   const record = await prisma.item.update({
@@ -317,6 +322,7 @@ export async function updateItem(
       reorderLevel: data.reorderLevel,
       description: data.description,
       isActive: data.isActive,
+      isInventoryItem: data.isInventoryItem,
     },
   });
   await auditLog({

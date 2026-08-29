@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       reorderLevel: body.reorderLevel ? Number(body.reorderLevel) : 0,
       openingStock: body.openingStock ? Number(body.openingStock) : 0,
       openingWarehouseId: body.openingWarehouseId ? Number(body.openingWarehouseId) : null,
+      isInventoryItem: typeof body.isInventoryItem === "boolean" ? body.isInventoryItem : true,
       description: body.description ?? null,
     });
     return ok({ item: record });

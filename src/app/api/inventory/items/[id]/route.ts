@@ -31,6 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       reorderLevel: body.reorderLevel != null ? Number(body.reorderLevel) : undefined,
       description: body.description ?? null,
       isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
+      isInventoryItem: typeof body.isInventoryItem === "boolean" ? body.isInventoryItem : undefined,
     });
     return ok({ item });
   } catch (e) {

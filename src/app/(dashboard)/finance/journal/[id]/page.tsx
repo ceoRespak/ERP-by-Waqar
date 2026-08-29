@@ -72,9 +72,10 @@ export default async function JournalDetailPage({ params }: Props) {
         title={`${entry.entryNo} — ${entry.description}`}
         description={[balanced ? "Balanced double-entry journal entry." : "Journal entry is NOT balanced.", partyLabel].filter(Boolean).join(" · ")}
         hero
+        tone="light"
         icon={ScrollText}
       >
-        <Badge variant={statusVariant(entry.status)} className="bg-white/20 text-white ring-1 ring-white/30">
+        <Badge variant={statusVariant(entry.status)} className="bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
           {entry.status}
         </Badge>
       </PageHeader>

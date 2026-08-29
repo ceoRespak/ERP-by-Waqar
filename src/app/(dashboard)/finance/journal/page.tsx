@@ -78,6 +78,7 @@ export default async function JournalPage() {
         title="Journal Entries"
         description="Double-entry transactions. Posting goes through the approval workflow."
         hero
+        tone="light"
         icon={ScrollText}
       />
       <div className="mx-auto max-w-4xl">

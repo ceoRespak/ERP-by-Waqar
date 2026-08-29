@@ -18,6 +18,7 @@ export type ItemEdit = {
   categoryId: number | null;
   description: string | null;
   isActive: boolean;
+  isInventoryItem: boolean;
 };
 
 export function ItemEditForm({ item, categories }: { item: ItemEdit; categories: { id: number; name: string }[] }) {
@@ -28,6 +29,7 @@ export function ItemEditForm({ item, categories }: { item: ItemEdit; categories:
   const [reorderLevel, setReorderLevel] = useState(String(item.reorderLevel));
   const [description, setDescription] = useState(item.description ?? "");
   const [isActive, setIsActive] = useState(item.isActive);
+  const [isInventoryItem, setIsInventoryItem] = useState(item.isInventoryItem);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +48,7 @@ export function ItemEditForm({ item, categories }: { item: ItemEdit; categories:
           reorderLevel: Number(reorderLevel || 0),
           description: description || null,
           isActive,
+          isInventoryItem,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -90,11 +93,25 @@ export function ItemEditForm({ item, categories }: { item: ItemEdit; categories:
               <Label>Unit *</Label>
               <Input value={unit} onChange={(e) => setUnit(e.target.value)} required placeholder="EA" />
             </div>
-            <div className="space-y-2">
-              <Label>Reorder Level</Label>
-              <Input type="number" step="any" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} />
-            </div>
+            {isInventoryItem && (
+              <div className="space-y-2">
+                <Label>Reorder Level</Label>
+                <Input type="number" step="any" value={reorderLevel} onChange={(e) => setReorderLevel(e.target.value)} />
+              </div>
+            )}
           </div>
+          <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={isInventoryItem}
+              onChange={(e) => setIsInventoryItem(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+            />
+            <span className="text-sm font-medium text-slate-700">
+              Track in inventory (stock){" "}
+              <span className="font-normal text-slate-500">— uncheck for services / non-stock items</span>
+            </span>
+          </label>
           <div className="space-y-2">
             <Label>Description</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />

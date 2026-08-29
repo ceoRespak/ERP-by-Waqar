@@ -61,8 +61,8 @@ export function JournalForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card className="overflow-hidden">
-        <CardHeader className="inv-card-header">
-          <CardTitle className="flex items-center gap-2 text-base text-white">
+        <CardHeader className="fin-card-header">
+          <CardTitle className="flex items-center gap-2 text-base text-slate-800">
             <ScrollText className="h-4 w-4" />
             Journal Entry
           </CardTitle>

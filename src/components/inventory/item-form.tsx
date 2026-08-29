@@ -26,9 +26,10 @@ export function ItemForm({
     openingStock: "0",
     openingWarehouseId: "",
     description: "",
+    isInventoryItem: true,
   });
 
-  function set<K extends keyof typeof form>(key: K, value: string) {
+  function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -42,6 +43,7 @@ export function ItemForm({
       reorderLevel: Number(form.reorderLevel),
       openingStock: Number(form.openingStock),
       openingWarehouseId: form.openingWarehouseId ? Number(form.openingWarehouseId) : null,
+      isInventoryItem: form.isInventoryItem,
       description: form.description || null,
     });
   }
@@ -77,23 +79,39 @@ export function ItemForm({
             <Label>Unit</Label>
             <Input value={form.unit} onChange={(e) => set("unit", e.target.value)} />
           </div>
-          <div className="space-y-2">
-            <Label>Reorder Level</Label>
-            <Input type="number" min="0" step="any" value={form.reorderLevel} onChange={(e) => set("reorderLevel", e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Opening Stock</Label>
-            <Input type="number" min="0" step="any" value={form.openingStock} onChange={(e) => set("openingStock", e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Opening Stock Warehouse</Label>
-            <Select value={form.openingWarehouseId} onChange={(e) => set("openingWarehouseId", e.target.value)}>
-              <option value="">— First warehouse —</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
-            </Select>
-          </div>
+          <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.isInventoryItem}
+              onChange={(e) => set("isInventoryItem", e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+            />
+            <span className="text-sm font-medium text-slate-700">
+              Track in inventory (stock){" "}
+              <span className="font-normal text-slate-500">— uncheck for services / non-stock items</span>
+            </span>
+          </label>
+          {form.isInventoryItem && (
+            <>
+              <div className="space-y-2">
+                <Label>Reorder Level</Label>
+                <Input type="number" min="0" step="any" value={form.reorderLevel} onChange={(e) => set("reorderLevel", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opening Stock</Label>
+                <Input type="number" min="0" step="any" value={form.openingStock} onChange={(e) => set("openingStock", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Opening Stock Warehouse</Label>
+                <Select value={form.openingWarehouseId} onChange={(e) => set("openingWarehouseId", e.target.value)}>
+                  <option value="">— First warehouse —</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </Select>
+              </div>
+            </>
+          )}
           <div className="space-y-2 sm:col-span-2">
             <Label>Description</Label>
             <Input value={form.description} onChange={(e) => set("description", e.target.value)} />

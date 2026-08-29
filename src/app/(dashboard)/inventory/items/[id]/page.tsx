@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, statusVariant } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { ItemEditForm } from "@/components/inventory/item-edit-form";
-import { formatDate, formatNumber } from "@/lib/utils";
-import { Boxes, Layers, Package, Tag, Ruler } from "lucide-react";
+import { formatDate, formatNumber, cn } from "@/lib/utils";
+import { Boxes, CheckCircle2, Layers, Package, PackageX, Tag, Ruler } from "lucide-react";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -51,21 +51,33 @@ export default async function ItemDetailPage({ params }: Props) {
     { key: "createdAt", header: "Date", render: (r) => formatDate(r.createdAt) },
   ];
 
-  const statCards = [
-    { label: "On Hand", value: `${formatNumber(totalOnHand)} ${item.unit}`, icon: Layers, accent: "from-emerald-500 to-teal-600" },
-    { label: "Reorder Level", value: formatNumber(item.reorderLevel), icon: Package, accent: "from-amber-500 to-orange-600" },
-    { label: "Category", value: item.category?.name ?? "—", icon: Tag, accent: "from-sky-500 to-blue-600" },
-    { label: "Unit", value: item.unit, icon: Ruler, accent: "from-violet-500 to-purple-600" },
-  ];
+  const statCards = item.isInventoryItem
+    ? [
+        { label: "On Hand", value: `${formatNumber(totalOnHand)} ${item.unit}`, icon: Layers, accent: "from-emerald-500 to-teal-600" },
+        { label: "Reorder Level", value: formatNumber(item.reorderLevel), icon: Package, accent: "from-amber-500 to-orange-600" },
+        { label: "Category", value: item.category?.name ?? "—", icon: Tag, accent: "from-sky-500 to-blue-600" },
+        { label: "Unit", value: item.unit, icon: Ruler, accent: "from-violet-500 to-purple-600" },
+      ]
+    : [
+        { label: "Tracking", value: "Non-stock", icon: PackageX, accent: "from-slate-500 to-slate-600" },
+        { label: "Category", value: item.category?.name ?? "—", icon: Tag, accent: "from-sky-500 to-blue-600" },
+        { label: "Unit", value: item.unit, icon: Ruler, accent: "from-violet-500 to-purple-600" },
+        { label: "Status", value: item.isActive ? "Active" : "Inactive", icon: CheckCircle2, accent: "from-emerald-500 to-teal-600" },
+      ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={`${item.code} — ${item.name}`}
-        description={`${item.category?.name ?? "Uncategorized"} · ${item.unit} · reorder at ${formatNumber(item.reorderLevel)}`}
+        description={`${item.category?.name ?? "Uncategorized"} · ${item.unit}${item.isInventoryItem ? ` · reorder at ${formatNumber(item.reorderLevel)}` : " · non-stock / service item"}`}
         hero
         icon={Boxes}
       >
+        {!item.isInventoryItem && (
+          <Badge variant="secondary" className="bg-white/20 text-white ring-1 ring-white/30">
+            Non-stock
+          </Badge>
+        )}
         <Badge variant={statusVariant(item.isActive ? "ACTIVE" : "INACTIVE")} className="bg-white/20 text-white ring-1 ring-white/30">
           {item.isActive ? "Active" : "Inactive"}
         </Badge>
@@ -88,30 +100,32 @@ export default async function ItemDetailPage({ params }: Props) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2 space-y-6">
-          <Card className="overflow-hidden">
-            <CardHeader className="inv-card-header">
-              <CardTitle className="text-base text-white">
-                Stock by Warehouse{" "}
-                <span className="ml-1 text-sm font-normal text-sky-100">(total {formatNumber(totalOnHand)} {item.unit})</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <DataTable columns={levelColumns} rows={item.stockLevels} rowKey={(r) => r.id} emptyMessage="No stock recorded yet." headerClassName="inv-table-head" zebra />
-            </CardContent>
-          </Card>
+        {item.isInventoryItem && (
+          <div className="min-w-0 lg:col-span-2 space-y-6">
+            <Card className="overflow-hidden">
+              <CardHeader className="inv-card-header">
+                <CardTitle className="text-base text-white">
+                  Stock by Warehouse{" "}
+                  <span className="ml-1 text-sm font-normal text-sky-100">(total {formatNumber(totalOnHand)} {item.unit})</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <DataTable columns={levelColumns} rows={item.stockLevels} rowKey={(r) => r.id} emptyMessage="No stock recorded yet." headerClassName="inv-table-head" zebra />
+              </CardContent>
+            </Card>
 
-          <Card className="overflow-hidden">
-            <CardHeader className="inv-card-header">
-              <CardTitle className="text-base text-white">Recent Transactions</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <DataTable columns={txnColumns} rows={item.transactions} rowKey={(r) => r.id} emptyMessage="No transactions yet." headerClassName="inv-table-head" zebra />
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="overflow-hidden">
+              <CardHeader className="inv-card-header">
+                <CardTitle className="text-base text-white">Recent Transactions</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <DataTable columns={txnColumns} rows={item.transactions} rowKey={(r) => r.id} emptyMessage="No transactions yet." headerClassName="inv-table-head" zebra />
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-        <div className="space-y-6">
+        <div className={cn("space-y-6", item.isInventoryItem ? "lg:col-span-1" : "lg:col-span-3")}>
           <Card className="overflow-hidden">
             <CardHeader className="inv-card-header">
               <CardTitle className="text-base text-white">Details</CardTitle>
@@ -130,12 +144,16 @@ export default async function ItemDetailPage({ params }: Props) {
                 <span>{item.unit}</span>
               </div>
               <div className="flex justify-between border-b pb-2">
+                <span className="text-muted-foreground">Tracking</span>
+                <Badge variant={item.isInventoryItem ? "info" : "muted"}>{item.isInventoryItem ? "Inventory (stock)" : "Non-stock"}</Badge>
+              </div>
+              <div className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Reorder Level</span>
-                <span>{formatNumber(item.reorderLevel)}</span>
+                <span>{item.isInventoryItem ? formatNumber(item.reorderLevel) : "—"}</span>
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-muted-foreground">Opening Stock</span>
-                <span>{formatNumber(item.openingStock)}</span>
+                <span>{item.isInventoryItem ? formatNumber(item.openingStock) : "—"}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Description</span>
@@ -154,6 +172,7 @@ export default async function ItemDetailPage({ params }: Props) {
               categoryId: item.categoryId,
               description: item.description,
               isActive: item.isActive,
+              isInventoryItem: item.isInventoryItem,
             }}
             categories={categories}
           />

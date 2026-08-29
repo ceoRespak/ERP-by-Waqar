@@ -26,8 +26,8 @@ export function AccountForm({ accounts }: { accounts: { id: number; code: string
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="inv-card-header">
-        <CardTitle className="flex items-center gap-2 text-base text-white">
+      <CardHeader className="fin-card-header">
+        <CardTitle className="flex items-center gap-2 text-base text-slate-800">
           <BookOpen className="h-4 w-4" />
           New Account
         </CardTitle>

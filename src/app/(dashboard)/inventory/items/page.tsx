@@ -36,9 +36,14 @@ const columns: Column<Item>[] = [
     key: "name",
     header: "Name",
     render: (r) => (
-      <Link href={`/inventory/items/${r.id}`} className="hover:underline">
-        {r.name}
-      </Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link href={`/inventory/items/${r.id}`} className="hover:underline">
+          {r.name}
+        </Link>
+        {!r.isInventoryItem && (
+          <Badge variant="muted" className="shrink-0">Non-stock</Badge>
+        )}
+      </div>
     ),
   },
   { key: "category", header: "Category", render: (r) => r.category?.name ?? "—" },
