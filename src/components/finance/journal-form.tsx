@@ -102,20 +102,20 @@ export function JournalForm({
                   </Select>
                 </div>
                 <div className="space-y-1 sm:col-span-3">
-                  <Label className="text-xs">Project *</Label>
-                  <Select value={l.projectId} onChange={(e) => updateLine(idx, { projectId: e.target.value })} required>
-                    <option value="">— Select project —</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="space-y-1 sm:col-span-3">
-                  <Label className="text-xs">Item</Label>
-                  <Select value={l.itemId} onChange={(e) => updateLine(idx, { itemId: e.target.value })}>
-                    <option value="">— None —</option>
-                    {items.map((i) => (
-                      <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                <Label className="text-xs">Item</Label>
+                <Select value={l.itemId} onChange={(e) => updateLine(idx, { itemId: e.target.value })}>
+                  <option value="">— None —</option>
+                  {items.map((i) => (
+                    <option key={i.id} value={i.id}>{i.code} — {i.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="space-y-1 sm:col-span-3">
+                <Label className="text-xs">Project *</Label>
+                <Select value={l.projectId} onChange={(e) => updateLine(idx, { projectId: e.target.value })} required>
+                  <option value="">— Select project —</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                     ))}
                   </Select>
                 </div>
