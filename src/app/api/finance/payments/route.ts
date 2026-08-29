@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       method: body.method ?? "CASH",
       date: body.date ?? null,
       accountId: Number(body.accountId),
+      counterAccountId: body.counterAccountId ? Number(body.counterAccountId) : 0,
       refType: body.refType ?? null,
       refId: body.refId ? Number(body.refId) : null,
       notes: body.notes ?? null,

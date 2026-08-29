@@ -75,6 +75,11 @@ export default async function JournalDetailPage({ params }: Props) {
         tone="light"
         icon={ScrollText}
       >
+        {entry.payment && (
+          <Badge variant="info" className="bg-white text-sky-700 shadow-sm ring-1 ring-slate-200">
+            From {entry.payment.type === "IN" ? "Receipt" : "Payment"} {entry.payment.paymentNo}
+          </Badge>
+        )}
         <Badge variant={statusVariant(entry.status)} className="bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
           {entry.status}
         </Badge>

@@ -562,6 +562,7 @@ model Account {
   children     Account[]          @relation("AccountTree")
   journalLines JournalEntryLine[]
   payments     Payment[]
+  counterPayments Payment[]       @relation("PaymentCounterAccount")
   budgetLines  BudgetLine[]
 
   projectAssetAccounts  Project[] @relation("ProjectAssetAccount")
@@ -584,6 +585,7 @@ model JournalEntry {
   lines   JournalEntryLine[]
   vendor  Vendor?  @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  payment Payment?
 
   @@index([date])
 }
@@ -622,15 +624,19 @@ model Payment {
   method            PaymentMethod @default(CASH)
   date              DateTime      @default(now())
   accountId         Int
+  counterAccountId  Int?
   refType           String? // SUPPLIER_INVOICE | CLIENT_INVOICE | CHECK_REQUEST
   refId             Int?
   notes             String?
   status            String        @default("PENDING") // PENDING | APPROVED | PAID | REJECTED
   approvalRequestId Int?          @unique
+  journalEntryId    Int?          @unique
   createdById       Int?
   createdAt         DateTime      @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
+  account         Account       @relation(fields: [accountId], references: [id])
+  counterAccount  Account?      @relation("PaymentCounterAccount", fields: [counterAccountId], references: [id], onDelete: SetNull)
+  journalEntry    JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
 
   @@index([type, status])
 }

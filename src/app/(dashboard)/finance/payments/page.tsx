@@ -2,6 +2,7 @@ import { requirePermission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { listPayments } from "@/server/finance/service";
 import { prisma } from "@/lib/db";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge, statusVariant } from "@/components/ui/badge";
@@ -20,6 +21,11 @@ const columns: Column<Row>[] = [
     render: (r) => <Badge variant={r.type === "IN" ? "success" : "warning"}>{r.type === "IN" ? "IN (Receipt)" : "OUT (Payment)"}</Badge>,
   },
   { key: "account", header: "Account", render: (r) => r.account.name },
+  {
+    key: "counterAccount",
+    header: "Cross Account",
+    render: (r) => (r.counterAccount ? r.counterAccount.name : <span className="text-muted-foreground">—</span>),
+  },
   { key: "amount", header: "Amount", className: "text-right", render: (r) => formatMoney(r.amount) },
   { key: "method", header: "Method" },
   {
@@ -28,6 +34,18 @@ const columns: Column<Row>[] = [
     render: (r) => <Badge variant={statusVariant(r.status)}>{r.status}</Badge>,
   },
   { key: "date", header: "Date", render: (r) => formatDate(r.date) },
+  {
+    key: "entry",
+    header: "Journal",
+    render: (r) =>
+      r.journalEntry ? (
+        <Link href={`/finance/journal/${r.journalEntry.id}`} className="font-mono text-xs font-medium text-primary hover:underline">
+          {r.journalEntry.entryNo}
+        </Link>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
   {
     key: "actions",
     header: "",

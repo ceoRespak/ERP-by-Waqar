@@ -50,6 +50,7 @@ export async function getJournalEntry(id: number) {
       lines: { include: { account: true, project: { select: { id: true, code: true, name: true } }, vendor: { select: { id: true, name: true } }, item: { select: { id: true, code: true, name: true, unit: true } } }, orderBy: { id: "asc" } },
       vendor: { select: { id: true, name: true } },
       project: { select: { id: true, code: true, name: true } },
+      payment: { select: { id: true, paymentNo: true, type: true } },
     },
   });
 }
@@ -112,40 +113,101 @@ export async function listPayments(opts: { limit?: number; type?: string } = {})
     where: opts.type ? { type: opts.type } : undefined,
     include: {
       account: { select: { id: true, code: true, name: true } },
+      counterAccount: { select: { id: true, code: true, name: true } },
+      journalEntry: { select: { id: true, entryNo: true } },
     },
     orderBy: { createdAt: "desc" },
     take: opts.limit ?? 200,
   });
 }
 
+/**
+ * Create a payment with full double-entry: every payment books a balanced
+ * journal entry with two lines (cross-account + cash/bank account).
+ *
+ *   OUT (payment):  Debit  crossAccount (expense / payable / recipient)
+ *                   Credit account      (cash / bank)
+ *   IN  (receipt):  Debit  account      (cash / bank)
+ *                   Credit crossAccount (income / receivable / payer)
+ */
 export async function createPayment(data: {
   type: "IN" | "OUT";
   amount: number;
   method: PaymentMethod;
   date?: string;
   accountId: number;
+  counterAccountId: number;
   refType?: string | null;
   refId?: number | null;
   notes?: string | null;
   createdById?: number | null;
 }) {
+  if (!data.counterAccountId) {
+    throw new Error("Cross account is required — every payment needs two sides for double-entry.");
+  }
+  const amount = Number(data.amount);
+  if (!isFinite(amount) || amount <= 0) throw new Error("Amount must be greater than zero.");
+  if (data.accountId === data.counterAccountId) {
+    throw new Error("Cross account must be different from the cash/bank account.");
+  }
+
+  // Generate reference numbers OUTSIDE the transaction (see materials service —
+  // nextDocNo runs its own transaction, nesting it deadlocks).
   const paymentNo = await nextDocNo("paymentNo", "PAY", (args) => prisma.payment.findFirst(args as any));
-  const record = await prisma.payment.create({
-    data: {
-      paymentNo,
-      type: data.type,
-      amount: data.amount,
-      method: data.method,
-      date: data.date ? new Date(data.date) : new Date(),
-      accountId: data.accountId,
-      refType: data.refType ?? null,
-      refId: data.refId ?? null,
-      notes: data.notes,
-      status: "PENDING",
-      createdById: data.createdById ?? null,
-    },
+  const entryNo = await nextDocNo("entryNo", "JE", (args) => prisma.journalEntry.findFirst(args as any));
+
+  const debit = data.type === "OUT" ? data.counterAccountId : data.accountId;
+  const credit = data.type === "OUT" ? data.accountId : data.counterAccountId;
+  const description =
+    `${data.type === "OUT" ? "Payment out" : "Receipt in"} ${paymentNo}` +
+    (data.notes ? ` — ${data.notes}` : "");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const journal = await tx.journalEntry.create({
+      data: {
+        entryNo,
+        date: data.date ? new Date(data.date) : new Date(),
+        description,
+        createdById: data.createdById ?? null,
+        status: "POSTED",
+        lines: {
+          create: [
+            { accountId: debit, debit: amount, credit: 0, notes: `${data.type === "OUT" ? "Payment (debit side)" : "Receipt (debit side)"}` },
+            { accountId: credit, debit: 0, credit: amount, notes: `${data.type === "OUT" ? "Payment (credit side)" : "Receipt (credit side)"}` },
+          ],
+        },
+      },
+    });
+
+    const record = await tx.payment.create({
+      data: {
+        paymentNo,
+        type: data.type,
+        amount,
+        method: data.method,
+        date: data.date ? new Date(data.date) : new Date(),
+        accountId: data.accountId,
+        counterAccountId: data.counterAccountId,
+        refType: data.refType ?? null,
+        refId: data.refId ?? null,
+        notes: data.notes,
+        status: "PENDING",
+        journalEntryId: journal.id,
+        createdById: data.createdById ?? null,
+      },
+    });
+    return { record, journal };
   });
-  return record;
+
+  await auditLog({
+    userId: data.createdById,
+    action: "CREATE",
+    module: MODULES.FINANCE,
+    entity: "PAYMENT",
+    entityId: result.record.id,
+    details: { paymentNo, entryNo, type: data.type, amount },
+  });
+  return result.record;
 }
 
 export async function submitPayment(params: { id: number; userId: number; userName: string }) {

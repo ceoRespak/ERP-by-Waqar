@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubmit } from "@/hooks/use-submit";
-import { cn } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
 import { Loader2, Banknote, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 export function PaymentForm({ accounts }: { accounts: { id: number; code: string; name: string }[] }) {
@@ -17,19 +17,27 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
   const [method, setMethod] = useState("CASH");
   const [date, setDate] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [counterAccountId, setCounterAccountId] = useState("");
   const [refType, setRefType] = useState("");
   const [refId, setRefId] = useState("");
   const [notes, setNotes] = useState("");
 
+  const cashAccount = accounts.find((a) => a.id === Number(accountId));
+  const crossAccount = accounts.find((a) => a.id === Number(counterAccountId));
+  const isOut = type === "OUT";
+  const debitAccount = isOut ? crossAccount : cashAccount;
+  const creditAccount = isOut ? cashAccount : crossAccount;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!accountId) return;
+    if (!accountId || !counterAccountId) return;
     await submit({
       type,
       amount: Number(amount),
       method,
       date: date || null,
       accountId: Number(accountId),
+      counterAccountId: Number(counterAccountId),
       refType: refType || null,
       refId: refId ? Number(refId) : null,
       notes: notes || null,
@@ -96,7 +104,7 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Bank / Account *</Label>
+            <Label>Cash / Bank Account *</Label>
             <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} required>
               <option value="">— Select —</option>
               {accounts.map((a) => (
@@ -104,6 +112,45 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
               ))}
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>Cross Account (other side) *</Label>
+            <Select value={counterAccountId} onChange={(e) => setCounterAccountId(e.target.value)} required>
+              <option value="">— Select cross account —</option>
+              {accounts
+                .filter((a) => a.id !== Number(accountId))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+                ))}
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {isOut
+                ? "Where the money goes (e.g. Accounts Payable / expense for a supplier)."
+                : "Where the money comes from (e.g. Accounts Receivable / income from a customer)."}
+            </p>
+          </div>
+
+          {/* Double-entry preview */}
+          {(accountId || counterAccountId) && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <Banknote className="h-3.5 w-3.5" />
+                Double entry preview
+              </p>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                <div className="rounded-md bg-white p-2 shadow-sm ring-1 ring-slate-200">
+                  <p className="text-xs text-muted-foreground">Debit</p>
+                  <p className="truncate font-medium text-slate-800">{debitAccount ? `${debitAccount.code} — ${debitAccount.name}` : "—"}</p>
+                  <p className="text-right text-sm font-semibold text-rose-600">{formatMoney(Number(amount) || 0)}</p>
+                </div>
+                <div className="rounded-md bg-white p-2 shadow-sm ring-1 ring-slate-200">
+                  <p className="text-xs text-muted-foreground">Credit</p>
+                  <p className="truncate font-medium text-slate-800">{creditAccount ? `${creditAccount.code} — ${creditAccount.name}` : "—"}</p>
+                  <p className="text-right text-sm font-semibold text-emerald-600">{formatMoney(Number(amount) || 0)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Reference Type</Label>
@@ -121,7 +168,7 @@ export function PaymentForm({ accounts }: { accounts: { id: number; code: string
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !counterAccountId}
             className={`w-full bg-gradient-to-r text-white shadow hover:text-white ${
               type === "IN"
                 ? "from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
