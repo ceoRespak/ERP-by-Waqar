@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       bankName: body.bankName ?? null,
       bankAccount: body.bankAccount ?? null,
       notes: body.notes ?? null,
+      payableAccountId: body.payableAccountId ? Number(body.payableAccountId) : null,
     });
     return ok({ vendor: record });
   } catch (e) {

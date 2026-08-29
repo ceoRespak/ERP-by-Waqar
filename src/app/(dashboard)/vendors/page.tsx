@@ -14,6 +14,19 @@ const columns: Column<Row>[] = [
   { key: "type", header: "Type", render: (r) => <Badge variant="secondary">{r.type.replace("_", " ")}</Badge> },
   { key: "contactPerson", header: "Contact" },
   { key: "phone", header: "Phone", render: (r) => r.phone ?? "—" },
+  {
+    key: "payableAccount",
+    header: "Payable Account",
+    render: (r) =>
+      r.payableAccount ? (
+        <span className="inline-flex items-center gap-1">
+          <span className="font-mono text-xs text-slate-500">{r.payableAccount.code}</span>
+          <span>{r.payableAccount.name}</span>
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
   { key: "rating", header: "Rating", className: "text-right", render: (r) => (r.rating ? r.rating.toString() : "—") },
   {
     key: "status",

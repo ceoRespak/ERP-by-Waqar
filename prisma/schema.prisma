@@ -563,6 +563,7 @@ model Account {
   journalLines JournalEntryLine[]
   payments     Payment[]
   counterPayments Payment[]       @relation("PaymentCounterAccount")
+  vendorPayables Vendor[]          @relation("VendorPayableAccount")
   budgetLines  BudgetLine[]
 
   projectAssetAccounts  Project[] @relation("ProjectAssetAccount")
@@ -1233,9 +1234,11 @@ model Vendor {
   rating        Decimal?   @db.Decimal(3, 1)
   status        String     @default("ACTIVE") // ACTIVE | BLACKLISTED | INACTIVE
   notes         String?
+  payableAccountId Int? // default Accounts Payable / Vendors Payable account
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
+  payableAccount   Account?           @relation("VendorPayableAccount", fields: [payableAccountId], references: [id], onDelete: SetNull)
   contacts         VendorContact[]
   evaluations      VendorEvaluation[]
   documents        VendorDocument[]

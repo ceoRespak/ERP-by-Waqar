@@ -7,6 +7,29 @@ import type { VendorType } from "@prisma/client";
 // VENDOR MANAGEMENT
 // =====================================================================
 
+/** Reserved code of the default "Vendors Payable" account in the chart of accounts. */
+export const DEFAULT_PAYABLE_ACCOUNT_CODE = "2010";
+
+/**
+ * Resolve the default "Vendors Payable" account, creating it on first use if it
+ * does not exist yet. Every vendor is linked to this account so that payables
+ * are always booked to a consistent liability account.
+ */
+export async function getOrCreatePayableAccount() {
+  const existing = await prisma.account.findFirst({
+    where: { code: DEFAULT_PAYABLE_ACCOUNT_CODE },
+  });
+  if (existing) return existing;
+  return prisma.account.create({
+    data: {
+      code: DEFAULT_PAYABLE_ACCOUNT_CODE,
+      name: "Vendors Payable",
+      type: "LIABILITY",
+      description: "Default payable account linked to all vendors",
+    },
+  });
+}
+
 export async function listVendors(opts: { limit?: number; type?: VendorType; status?: string } = {}) {
   return prisma.vendor.findMany({
     where: {
@@ -15,6 +38,7 @@ export async function listVendors(opts: { limit?: number; type?: VendorType; sta
     },
     include: {
       _count: { select: { purchaseOrders: true, evaluations: true } },
+      payableAccount: { select: { id: true, code: true, name: true } },
     },
     orderBy: { name: "asc" },
     take: opts.limit ?? 500,
@@ -34,7 +58,13 @@ export async function createVendor(data: {
   bankName?: string | null;
   bankAccount?: string | null;
   notes?: string | null;
+  payableAccountId?: number | null;
 }) {
+  // Auto-link the vendor to the default "Vendors Payable" account (unless an
+  // explicit payable account was provided).
+  const payableAccountId =
+    data.payableAccountId ?? (await getOrCreatePayableAccount()).id;
+
   const record = await prisma.vendor.create({
     data: {
       code: data.code,
@@ -50,9 +80,10 @@ export async function createVendor(data: {
       bankAccount: data.bankAccount ?? null,
       notes: data.notes,
       status: "ACTIVE",
+      payableAccountId,
     },
   });
-  await auditLog({ action: "CREATE", module: MODULES.VENDORS, entity: "VENDOR", entityId: record.id, details: { code: record.code, name: record.name } });
+  await auditLog({ action: "CREATE", module: MODULES.VENDORS, entity: "VENDOR", entityId: record.id, details: { code: record.code, name: record.name, payableAccountId } });
   return record;
 }
 
