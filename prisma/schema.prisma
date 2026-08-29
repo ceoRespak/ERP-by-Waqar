@@ -575,13 +575,13 @@ model JournalEntry {
   approvalRequestId Int?     @unique
   createdById       Int?
   vendorId          Int?
-  clientId          Int?
+  projectId         Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  lines  JournalEntryLine[]
-  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  lines   JournalEntryLine[]
+  vendor  Vendor?  @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([date])
 }
@@ -1300,7 +1300,6 @@ model Client {
   contracts ClientContract[]
   projects  Project[]
   invoices  ClientInvoice[]
-  journalEntries JournalEntry[]
 
   @@index([status])
 }
@@ -1403,6 +1402,7 @@ model Project {
   userPermissionGrants UserProjectPermission[]
   attachments          ProjectAttachment[]
   journalLines         JournalEntryLine[]
+  journalEntries       JournalEntry[]
 
   @@index([status])
   @@index([category])

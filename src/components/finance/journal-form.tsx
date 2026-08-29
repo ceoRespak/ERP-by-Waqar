@@ -16,12 +16,10 @@ type Party = "NONE" | "VENDOR" | "CLIENT";
 export function JournalForm({
   accounts,
   vendors,
-  clients,
   projects,
 }: {
   accounts: { id: number; code: string; name: string }[];
   vendors: { id: number; name: string }[];
-  clients: { id: number; name: string }[];
   projects: { id: number; code: string; name: string }[];
 }) {
   const { submit, loading, error } = useSubmit("/api/finance/journal", "/finance/journal");
@@ -29,7 +27,7 @@ export function JournalForm({
   const [description, setDescription] = useState("");
   const [party, setParty] = useState<Party>("NONE");
   const [vendorId, setVendorId] = useState("");
-  const [clientId, setClientId] = useState("");
+  const [customerProjectId, setCustomerProjectId] = useState("");
   const [lines, setLines] = useState<Line[]>([{ accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }]);
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
@@ -46,7 +44,7 @@ export function JournalForm({
       date: date || null,
       description,
       vendorId: party === "VENDOR" && vendorId ? Number(vendorId) : null,
-      clientId: party === "CLIENT" && clientId ? Number(clientId) : null,
+      projectId: party === "CLIENT" && customerProjectId ? Number(customerProjectId) : null,
       lines: lines.map((l) => ({
         accountId: Number(l.accountId),
         projectId: l.projectId ? Number(l.projectId) : null,
@@ -60,7 +58,7 @@ export function JournalForm({
       setDescription("");
       setParty("NONE");
       setVendorId("");
-      setClientId("");
+      setCustomerProjectId("");
       setLines([{ accountId: "", projectId: "", debit: "0", credit: "0", notes: "" }]);
     }
   }
@@ -121,10 +119,10 @@ export function JournalForm({
             )}
             {party === "CLIENT" && (
               <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50 p-3">
-                <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                  <option value="">— Select customer —</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                <Select value={customerProjectId} onChange={(e) => setCustomerProjectId(e.target.value)}>
+                  <option value="">— Select customer (project) —</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                   ))}
                 </Select>
               </div>

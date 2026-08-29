@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       date: body.date ?? null,
       createdById: Number(user.id),
       vendorId: body.vendorId ? Number(body.vendorId) : null,
-      clientId: body.clientId ? Number(body.clientId) : null,
+      projectId: body.projectId ? Number(body.projectId) : null,
       lines: body.lines,
     });
     return ok({ entry: record });

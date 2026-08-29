@@ -51,7 +51,7 @@ export default async function JournalDetailPage({ params }: Props) {
     { label: "Lines", value: String(entry.lines.length), icon: ListChecks, accent: "from-amber-500 to-orange-600" },
   ];
 
-  const partyLabel = entry.vendor ? `Vendor: ${entry.vendor.name}` : entry.client ? `Customer: ${entry.client.name}` : null;
+  const partyLabel = entry.vendor ? `Vendor: ${entry.vendor.name}` : entry.project ? `Customer: ${entry.project.code} — ${entry.project.name}` : null;
 
   return (
     <div className="space-y-6">

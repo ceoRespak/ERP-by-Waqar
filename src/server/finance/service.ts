@@ -36,7 +36,7 @@ export async function listJournalEntries(opts: { limit?: number } = {}) {
     include: {
       lines: { include: { account: true, project: { select: { id: true, code: true, name: true } } } },
       vendor: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true } },
+      project: { select: { id: true, code: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
     take: opts.limit ?? 200,
@@ -49,7 +49,7 @@ export async function getJournalEntry(id: number) {
     include: {
       lines: { include: { account: true, project: { select: { id: true, code: true, name: true } } }, orderBy: { id: "asc" } },
       vendor: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true } },
+      project: { select: { id: true, code: true, name: true } },
     },
   });
 }
@@ -59,7 +59,7 @@ export async function createJournalEntry(data: {
   description: string;
   createdById?: number | null;
   vendorId?: number | null;
-  clientId?: number | null;
+  projectId?: number | null;
   lines: { accountId: number; debit: number; credit: number; notes?: string; projectId?: number | null }[];
 }) {
   const totalDebit = data.lines.reduce((s, l) => s + l.debit, 0);
@@ -75,7 +75,7 @@ export async function createJournalEntry(data: {
       description: data.description,
       createdById: data.createdById ?? null,
       vendorId: data.vendorId ?? null,
-      clientId: data.clientId ?? null,
+      projectId: data.projectId ?? null,
       status: "DRAFT",
       lines: { create: data.lines },
     },
